@@ -6,7 +6,7 @@ let BMS = [];
 let ICONS = {};
 let GROUPS = [{ id: "personal", name: "个人区" }, { id: "work", name: "工作区" }];
 let SITE = { name: "gai溜子导航站", author: "gai溜子到处跑", url: "www.090803.xyz" };
-const VERSION = "202610052252";
+const VERSION = "202610120128";
 const APP_VERSION = "v4.6";
 const SNAPSHOT_VERSION = 4;
 const REPO_URL = "https://github.com/jeffak000/webbook-cf";
@@ -116,7 +116,38 @@ function applyData(j) {
   renderSite();
 }
 
+let mutationEpoch = 0;
+let pendingMove = false;
+let pendingSave = false;
+function persistCurrentData() {
+  try { localStorage.setItem("bm_snapshot", JSON.stringify({version: SNAPSHOT_VERSION, groups: GROUPS, categories: CATS, bookmarks: BMS, site: SITE, icons: ICONS})); } catch {}
+}
+function commitBookmark(b) {
+  const i = BMS.findIndex(x => x.id === b.id);
+  if (i < 0) BMS.push(b); else BMS[i] = b;
+  mutationEpoch++; persistCurrentData(); render();
+}
+async function saveMove(bm, patch, message) {
+  if (pendingMove || pendingSave) return toast("正在保存，请稍候");
+  await needAuth();
+  if (pendingMove || pendingSave) return;
+  pendingMove = true;
+  const current = BMS.find(x => x.id === bm.id);
+  if (!current) { pendingMove = false; return; }
+  const previous = {...current};
+  mutationEpoch++;
+  Object.assign(current, patch); render(); toast("正在保存…");
+  try {
+    const r = await callApi("/bookmarks/" + bm.id, {method:"PUT", body:JSON.stringify(patch)});
+    if (!r.ok) throw new Error("移动失败");
+    commitBookmark(await r.json()); toast(message);
+  } catch (e) {
+    commitBookmark(previous); toast("移动未确认，已恢复原位置，请刷新核对");
+  } finally { pendingMove = false; }
+}
 async function loadData(force = false) {
+  if (pendingMove) return false;
+  const epoch = mutationEpoch;
   let cachedData = "";
   // 1) 先用本地快照秒开（离线缓存），避免首屏白屏
   try {
@@ -137,6 +168,7 @@ async function loadData(force = false) {
     }
     if (!r.ok) throw new Error("HTTP " + r.status);
     const j = await r.json();
+    if (epoch !== mutationEpoch || pendingMove) return false;
     if (j.icons) ICONS = j.icons;
     const incoming = JSON.stringify({groups:j.groups,categories:j.categories,bookmarks:j.bookmarks,site:j.site,icons:j.icons || ICONS});
     if (incoming !== cachedData) applyData(j);
@@ -487,9 +519,7 @@ el("catList").addEventListener("drop", async (e) => {
 
 async function moveToGroup(bm, groupId) {
   if (bm.group === groupId) { toast("已在「" + groupName(groupId) + "」"); return; }
-  await needAuth();
-  const r = await callApi("/bookmarks/" + bm.id, { method: "PUT", body: JSON.stringify({ group: groupId, category_id: null }) });
-  if (r.ok) { toast("已移动到「" + groupName(groupId) + "」"); await loadData(); } else toast("移动失败");
+  await saveMove(bm, {group:groupId, category_id:null}, "已移动到「" + groupName(groupId) + "」");
 }
 async function moveCatToGroup(c, groupId) {
   if (c.group === groupId) { toast("已在「" + groupName(groupId) + "」"); return; }
@@ -498,9 +528,7 @@ async function moveCatToGroup(c, groupId) {
   if (r.ok) { toast("已移动到「" + groupName(groupId) + "」"); await loadData(); renderGroupManage(); } else toast("移动失败");
 }
 async function applyMove(bm, patch) {
-  await needAuth();
-  const r = await callApi("/bookmarks/" + bm.id, { method: "PUT", body: JSON.stringify(patch) });
-  if (r.ok) { toast("已更新"); await loadData(); } else toast("移动失败");
+  await saveMove(bm, patch, "已保存");
 }
 
 // ---------------- 分类 ----------------
@@ -655,6 +683,12 @@ el("catSave").onclick = async () => {
 
 el("bmCancel").onclick = () => { el("bmModal")._toCat = null; hide("bmModal"); };
 el("bmSave").onclick = async () => {
+  const btn = el("bmSave");
+  if (btn.disabled || pendingMove) return;
+  pendingSave = true;
+  btn.disabled = true;
+  const label = btn.textContent; btn.textContent = "保存中…";
+  try {
   await needAuth();
   const url = el("bmUrl").value.trim(); if (!url) return toast("请输入 URL");
   const payload = {
@@ -673,6 +707,7 @@ el("bmSave").onclick = async () => {
   const r = id ? await callApi("/bookmarks/" + id, { method: "PUT", body: JSON.stringify(payload) })
                : await callApi("/bookmarks", { method: "POST", body: JSON.stringify(payload) });
   if (r.ok) {
+    const saved = await r.json();
     hide("bmModal");
     const h = hostOf(payload.url);
     if (h) { delete ICONS[h]; ICON_BUST[h] = Date.now(); } // 让该图标重新拉取
@@ -681,10 +716,12 @@ el("bmSave").onclick = async () => {
       el("bmModal")._toCat = null;
       SEARCH_Q = ""; if (el("search")) el("search").value = "";
       ACTIVE_CAT = toCat;
-      await loadData();
+      commitBookmark(saved);
       if (nm) toast("已添加到「" + nm + "」");
-    } else await loadData();
+    } else { commitBookmark(saved); toast("已保存"); }
   } else toast("保存失败");
+  } catch (e) { toast("保存未确认，请刷新核对后再试"); }
+  finally { pendingSave = false; btn.disabled = false; btn.textContent = label; }
 };
 
 // ---------------- 设置抽屉 ----------------
