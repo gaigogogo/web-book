@@ -6,8 +6,8 @@ let BMS = [];
 let ICONS = {};
 let GROUPS = [{ id: "personal", name: "个人区" }, { id: "work", name: "工作区" }];
 let SITE = { name: "gai溜子导航站", author: "gai溜子到处跑", url: "www.090803.xyz" };
-const VERSION = "202610120128";
-const APP_VERSION = "v4.6";
+const VERSION = "202610132057";
+const APP_VERSION = "v4.8-noteone";
 const SNAPSHOT_VERSION = 4;
 const REPO_URL = "https://github.com/jeffak000/webbook-cf";
 let SEARCH_Q = "";
@@ -16,6 +16,7 @@ let ACTIVE_CAT = "all";
 let DRAG_BM = null; // 当前被拖拽的书签
 let DRAG_CAT = null; // 当前被拖拽的分类
 let DRAG_GRP = null; // 当前被拖拽的分区
+let EDIT_MODE = false;
 function clearDropHints() {
   document.querySelectorAll(".drop-ok, .drop-before, .drop-after").forEach((n) => n.classList.remove("drop-ok", "drop-before", "drop-after"));
 }
@@ -90,6 +91,7 @@ async function fetchWithRetry(url, opts = {}, retries = 1) {
 }
 
 async function callApi(path, opts = {}) {
+  if(!navigator.onLine && opts.method && opts.method!=="GET")throw new Error("离线只读，请联网后修改");
   const headers = Object.assign({}, opts.headers || {});
   if (TOKEN) headers["Authorization"] = "Bearer " + TOKEN;
   if (opts.body && !(opts.body instanceof FormData)) headers["Content-Type"] = "application/json";
@@ -241,6 +243,10 @@ function renderCatNav() {
     d.onclick = () => { SEARCH_Q = ""; if (el("search")) el("search").value = ""; ACTIVE_CAT = c.id; render(); };
     const addBtn = d.querySelector(".add");
     if (addBtn) addBtn.onclick = (e) => { e.stopPropagation(); addBmTo(c.id); };
+    const tools=document.createElement("span");tools.className="cat-tools";
+    for(const [text,action]of [["编辑",()=>editCat(c)],["删除",()=>delCat(c)]]){const button=document.createElement("button");button.className="small";button.textContent=text;button.onclick=e=>{e.stopPropagation();action();};tools.appendChild(button);}
+    for(const direction of [-1,1]){const button=document.createElement("button");button.className="small";button.textContent=direction<0?"↑":"↓";button.onclick=async e=>{e.stopPropagation();if(pendingMove||pendingSave)return toast("请等待当前操作完成");const list=groupCats(),i=list.findIndex(x=>x.id===c.id),next=list[i+direction];if(!next)return;const filtered=list.filter(x=>x.id!==c.id),ni=filtered.findIndex(x=>x.id===next.id)+(direction>0?1:0);try{await needAuth();if(!TOKEN)return;const r=await callApi("/categories/"+c.id,{method:"PUT",body:JSON.stringify({sort:insertSort(filtered,ni)})});if(!r.ok)throw Error();Object.assign(c,await r.json());mutationEpoch++;persistCurrentData();render();}catch{toast("排序未确认，请刷新核对");}};tools.appendChild(button);}
+    d.appendChild(tools);
     d.addEventListener("dragstart", (e) => {
       DRAG_CAT = c; e.dataTransfer.effectAllowed = "move";
       try { e.dataTransfer.setData("text/plain", c.id); } catch {}
@@ -338,6 +344,29 @@ function bmItem(b) {
   d.innerHTML = `<span class="icon-wrap"><img src="${iconSrc(h)}" alt="" width="18" height="18" loading="lazy" decoding="async" referrerpolicy="no-referrer"/>${noteMark}</span><span class="t">${hl(b.title || b.url, SEARCH_Q)}</span><button class="add bm-add" type="button" title="添加到本分类" aria-label="添加到本分类">＋</button>`;
   const img = d.querySelector("img");
   img.addEventListener("error", () => iconError(img, h), { once: true });
+  const state = document.createElement("span");
+  state.className = "link-state " + (b.link_status || "");
+  const label = {ok:"正常",broken:"失效",unknown:"待确认"}[b.link_status];
+  state.textContent = label || "";
+  state.title = b.link_checked_at ? "最后检查：" + new Date(b.link_checked_at).toLocaleString() + (b.link_http_status ? " HTTP " + b.link_http_status : "") : "";
+  if(label){state.tabIndex=0;state.setAttribute("role","button");state.onclick=e=>{e.stopPropagation();toast(state.title);};state.onkeydown=e=>{if(e.key==="Enter"){e.stopPropagation();toast(state.title);}};}
+  d.appendChild(state);
+  const tools=document.createElement("div"); tools.className="edit-tools";
+  for(const [label,action] of [["编辑",()=>editBm(b)],["删除",()=>delBm(b)]]) {
+    const button=document.createElement("button");button.textContent=label;
+    button.onclick=e=>{e.stopPropagation();action();};tools.appendChild(button);
+  }
+  for(const direction of [-1,1]) {
+    const button=document.createElement("button");button.textContent=direction<0?"前移":"后移";
+    button.onclick=e=>{e.stopPropagation();const list=sortedBms().filter(x=>x.group===b.group&&x.category_id===b.category_id);const i=list.findIndex(x=>x.id===b.id),next=list[i+direction];if(!next)return;const filtered=list.filter(x=>x.id!==b.id);const ni=filtered.findIndex(x=>x.id===next.id)+(direction>0?1:0);applyMove(b,{sort:insertSort(filtered,ni)});};tools.appendChild(button);
+  }
+  d.appendChild(tools);
+  d.addEventListener("click",e=>{if(d._suppressClick>Date.now()){e.preventDefault();e.stopPropagation();}},true);
+  let press=0,start;
+  d.addEventListener("pointerdown",e=>{if(e.pointerType==="mouse"||e.target.closest("button"))return;start={x:e.clientX,y:e.clientY};press=setTimeout(()=>{d._suppressClick=Date.now()+1000;showBookmarkMenu(b,start.x,start.y);},550);});
+  const cancel=()=>{clearTimeout(press);press=0;};
+  d.addEventListener("pointermove",e=>{if(start&&Math.hypot(e.clientX-start.x,e.clientY-start.y)>10)cancel();});
+  for(const name of ["pointerup","pointercancel","dragstart"])d.addEventListener(name,cancel);
   const addB = d.querySelector(".bm-add");
   if (addB) {
     addB.addEventListener("mousedown", (e) => e.stopPropagation());
@@ -400,13 +429,16 @@ el("content").addEventListener("contextmenu", (e) => {
   if (!item) return;
   e.preventDefault();
   const b = item._bm;
-  showCtx(e.clientX, e.clientY, [
+  showBookmarkMenu(b,e.clientX,e.clientY);
+});
+function showBookmarkMenu(b,x,y) {
+  showCtx(x, y, [
     { label: "打开链接", onClick: () => window.open(b.url, "_blank") },
     { label: "编辑", onClick: () => editBm(b) },
     { label: "刷新图标", onClick: () => refreshBmIcon(b) },
     { label: "删除", danger: true, onClick: () => delBm(b) },
   ]);
-});
+}
 el("catList").addEventListener("contextmenu", (e) => {
   const cat = e.target.closest(".cat");
   if (!cat || cat.dataset.virtual) return;
@@ -425,7 +457,7 @@ el("catList").addEventListener("contextmenu", (e) => {
 // 左键点击书签仍打开链接
 el("content").addEventListener("click", (e) => {
   const item = e.target.closest(".item");
-  if (item && item._bm) window.open(item._bm.url, "_blank");
+  if (item && item._bm && !EDIT_MODE && !(item._suppressClick>Date.now())) window.open(item._bm.url, "_blank");
 });
 
 // ---------------- 拖拽：书签 & 分类 ----------------
@@ -548,6 +580,7 @@ function editCat(c) {
 }
 let CAT_DELETE_BUSY = false;
 function confirmCatDelete(c) {
+  el("catDeleteTitle").textContent = "删除分类";
   el("catDeleteMessage").textContent = "删除分类「" + c.name + "」及其下 " + BMS.filter((b) => b.category_id === c.id).length + " 个书签？";
   show("catDeleteModal");
   el("catDeleteCancel").focus();
@@ -594,7 +627,7 @@ async function delCat(c) {
 function addBm() {
   el("bmTitle").textContent = "新建书签";
   el("bmTitle_in").value = ""; el("bmUrl").value = ""; el("bmNote").value = "";
-  fillCatSelect(""); fillGroupSelect("bmGroup", GROUP);
+  fillGroupSelect("bmGroup", GROUP); fillCatSelect("");
   el("bmModal")._id = null; el("bmModal")._toCat = null; show("bmModal"); el("bmUrl").focus();
 }
 // 从分类行的「＋」进来：新书签直接归入该分类，并排在该分类最前
@@ -603,29 +636,48 @@ function addBmTo(catId) {
   if (!cat) return addBm();
   el("bmTitle").textContent = "添加到「" + cat.name + "」";
   el("bmTitle_in").value = ""; el("bmUrl").value = ""; el("bmNote").value = "";
-  fillCatSelect(cat.id); fillGroupSelect("bmGroup", cat.group || GROUP);
+  fillGroupSelect("bmGroup", cat.group || GROUP); fillCatSelect(cat.id);
   el("bmModal")._id = null; el("bmModal")._toCat = cat.id;
   show("bmModal"); el("bmUrl").focus();
 }
 function editBm(b) {
   el("bmTitle").textContent = "编辑书签";
   el("bmTitle_in").value = b.title || ""; el("bmUrl").value = b.url || ""; el("bmNote").value = b.note || "";
-  fillCatSelect(b.category_id || ""); fillGroupSelect("bmGroup", b.group || GROUP);
+  fillGroupSelect("bmGroup", b.group || GROUP); fillCatSelect(b.category_id || "");
   el("bmModal")._id = b.id; el("bmModal")._toCat = null; show("bmModal");
 }
 function fillCatSelect(sel) {
   const s = el("bmCat"); s.innerHTML = `<option value="">（未分类）</option>`;
-  for (const c of groupCats()) s.insertAdjacentHTML("beforeend", `<option value="${c.id}"${c.id === sel ? " selected" : ""}>${esc(c.name)}</option>`);
+  const group=el("bmGroup").value||GROUP;
+  for (const c of sortedCats().filter(c=>c.group===group)) s.insertAdjacentHTML("beforeend", `<option value="${c.id}"${c.id === sel ? " selected" : ""}>${esc(c.name)}</option>`);
 }
 function fillGroupSelect(selId, val) {
   const s = el(selId); s.innerHTML = "";
   for (const g of sortedGroups()) s.insertAdjacentHTML("beforeend", `<option value="${g.id}"${g.id === val ? " selected" : ""}>${esc(g.name)}</option>`);
 }
 async function delBm(b) {
-  if (!confirm(`删除书签「${b.title || b.url}」？`)) return;
-  await needAuth();
-  const r = await callApi("/bookmarks/" + b.id, { method: "DELETE" });
-  if (r.ok) { toast("已删除"); await loadData(); } else toast("删除失败");
+  if (CAT_DELETE_BUSY || pendingMove || pendingSave) return toast("正在处理，请稍候");
+  CAT_DELETE_BUSY = true;
+  pendingSave = true;
+  try {
+    el("catDeleteTitle").textContent = "删除书签";
+    el("catDeleteMessage").textContent = "删除书签「" + (b.title || b.url) + "」？";
+    show("catDeleteModal"); el("catDeleteCancel").focus();
+    if (!await new Promise(resolve => { el("catDeleteModal")._resolve = resolve; })) return;
+    await needAuth();
+    if (!TOKEN) return;
+    pendingSave = true;
+    toast("正在删除…");
+    const r = await callApi("/bookmarks/" + encodeURIComponent(b.id), {method:"DELETE"});
+    if (!r.ok) {
+      const detail = await r.json().catch(() => ({}));
+      throw new Error(detail.error || "HTTP " + r.status);
+    }
+    BMS = BMS.filter(x => x.id !== b.id);
+    mutationEpoch++; persistCurrentData(); render(); toast("已删除");
+  } catch (e) {
+    if (e.message !== "unauthorized") toast("删除未确认，请刷新核对：" + e.message);
+  } finally { CAT_DELETE_BUSY = false; pendingSave = false; }
 }
 async function refreshBmIcon(b) {
   const h = hostOf(b.url); if (!h) return;
@@ -652,6 +704,8 @@ el("btnLogin").onclick = async () => {
   if (TOKEN) {
     try { await callApi("/logout", { method: "POST" }); } catch {}
     TOKEN = ""; localStorage.removeItem("bm_token"); updateLoginBtn(); toast("已退出");
+    localStorage.removeItem("bm_snapshot");localStorage.removeItem("bm_offline");
+    if(navigator.serviceWorker) {const registration=await navigator.serviceWorker.getRegistration();registration?.active?.postMessage({type:"CLEAR_OFFLINE"});}
     setTimeout(() => location.reload(), 300);
   } else openLogin();
 };
@@ -684,7 +738,7 @@ el("catSave").onclick = async () => {
 el("bmCancel").onclick = () => { el("bmModal")._toCat = null; hide("bmModal"); };
 el("bmSave").onclick = async () => {
   const btn = el("bmSave");
-  if (btn.disabled || pendingMove) return;
+  if (btn.disabled || pendingMove || pendingSave) return;
   pendingSave = true;
   btn.disabled = true;
   const label = btn.textContent; btn.textContent = "保存中…";
@@ -715,7 +769,7 @@ el("bmSave").onclick = async () => {
       const nm = (CATS.find((x) => x.id === toCat) || {}).name || "";
       el("bmModal")._toCat = null;
       SEARCH_Q = ""; if (el("search")) el("search").value = "";
-      ACTIVE_CAT = toCat;
+      ACTIVE_CAT = "all";
       commitBookmark(saved);
       if (nm) toast("已添加到「" + nm + "」");
     } else { commitBookmark(saved); toast("已保存"); }
@@ -1040,3 +1094,62 @@ updateLoginBtn();
 loadData();
 loadAccess();
 checkUpdate(true);
+
+// 手机无需依赖右键和触摸拖拽：编辑按钮、移动分类与前后排序。
+el("btnEditMode").onclick=()=>{EDIT_MODE=!EDIT_MODE;document.body.classList.toggle("edit-mode",EDIT_MODE);el("btnEditMode").textContent=EDIT_MODE?"完成编辑":"编辑模式";};
+el("bmGroup").onchange=()=>fillCatSelect("");
+let metadataSeq=0,metadataTimer=0;
+async function fetchMetadata() {
+  const input=el("bmUrl"),value=input.value.trim();
+  if(!/^https?:\/\//i.test(value))return;
+  const seq=++metadataSeq,existing=el("bmTitle_in").value;
+  el("metadataStatus").textContent="正在获取…";
+  try {
+    await needAuth();if(!TOKEN)return;
+    const r=await callApi("/url-metadata",{method:"POST",body:JSON.stringify({url:value}),timeout:10000});
+    const result=await r.json();
+    if(seq!==metadataSeq||input.value.trim()!==value||!el("bmModal").classList.contains("show"))return;
+    if(result.title&&el("bmTitle_in").value===existing&&(!existing||existing===value))el("bmTitle_in").value=result.title;
+    const host=hostOf(value);if(host){delete ICONS[host];ICON_BUST[host]=Date.now();}
+    el("metadataStatus").textContent=result.title?"标题已获取，图标后台更新":"未获取标题，可手动填写";
+  } catch {if(seq===metadataSeq)el("metadataStatus").textContent="获取失败，可手动填写";}
+}
+el("btnFetchTitle").onclick=fetchMetadata;
+el("bmUrl").addEventListener("input",()=>{metadataSeq++;clearTimeout(metadataTimer);el("metadataStatus").textContent="";metadataTimer=setTimeout(fetchMetadata,600);});
+el("btnCheckLinks").onclick=async()=>{
+  if(pendingSave||pendingMove)return toast("请等待当前保存完成");
+  await needAuth();if(!TOKEN)return;
+  const btn=el("btnCheckLinks"),ids=BMS.map(b=>b.id);pendingSave=true;btn.disabled=true;
+  let checked=0;
+  try {
+    for(let i=0;i<ids.length;i+=4){
+      el("linkCheckInfo").textContent="检查中 "+checked+" / "+ids.length;
+      const r=await callApi("/check-links",{method:"POST",body:JSON.stringify({ids:ids.slice(i,i+4)}),timeout:15000});
+      if(!r.ok)throw new Error("检查中断");
+      const j=await r.json();for(const result of j.results){const b=BMS.find(b=>b.id===result.id&&b.url===result.url);if(b)Object.assign(b,{link_status:result.status,link_http_status:result.http_status,link_checked_at:result.checked_at});}
+      checked+=j.results.length;mutationEpoch++;persistCurrentData();render();
+    }
+    el("linkCheckInfo").textContent="已检查 "+checked+" 条；失效 "+BMS.filter(b=>b.link_status==="broken").length+"，待确认 "+BMS.filter(b=>b.link_status==="unknown").length;
+  } catch {el("linkCheckInfo").textContent="检查中断，已保留 "+checked+" 条结果，可重新检查";}
+  finally {pendingSave=false;btn.disabled=false;}
+};
+el("bookmarklet").href="javascript:"+encodeURIComponent("(()=>{window.open("+JSON.stringify(location.origin+"/?add=")+"+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title),'_blank')})()");
+const addParams=new URLSearchParams(location.search);
+if(addParams.has("add")){addBm();el("bmUrl").value=addParams.get("add")||"";el("bmTitle_in").value=addParams.get("title")||"";history.replaceState(null,"","/");setTimeout(fetchMetadata,700);}
+let installPrompt;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installPrompt=e;});
+let swRegistration;
+if("serviceWorker" in navigator)swRegistration=navigator.serviceWorker.register("/sw.js");
+el("btnInstall").onclick=async()=>{
+  try {
+    if(!swRegistration)return toast("当前浏览器未支持离线功能");
+    await swRegistration;const reg=await navigator.serviceWorker.ready;
+    const worker=reg.active;if(!worker)throw new Error("not ready");
+    const channel=new MessageChannel();const done=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error("timeout")),10000);channel.port1.onmessage=e=>{clearTimeout(timer);e.data.ok?resolve():reject(Error("cache failed"));};});
+    worker.postMessage({type:"ENABLE_OFFLINE",asset:"/app.js?v="+VERSION},[channel.port2]);await done;
+    localStorage.setItem("bm_offline","1");toast("已启用本机离线只读；可添加到主屏幕");
+    if(installPrompt){await installPrompt.prompt();installPrompt=null;}
+  }catch{toast("离线准备失败，请联网后重试");}
+};
+window.addEventListener("offline",()=>toast("当前离线，可浏览缓存；修改需联网"));
+

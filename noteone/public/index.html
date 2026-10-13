@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#111217" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<link rel="apple-touch-icon" href="/pwa-icon.png" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%96%3C/text%3E%3C/svg%3E" />
 <title>书签中心</title>
 <!-- 尽早发出首屏数据请求（不等 app.js 下载执行），省一个往返 -->
@@ -71,6 +74,15 @@
   .item:hover .add,.item:focus-within .add,.item .add:focus-visible{opacity:1}
   .item .add:hover{background:var(--acc);border-color:var(--acc);color:#fff}
   .item .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;flex:1;min-width:0}
+  .edit-tools{display:none;gap:4px;margin-top:4px;width:100%}
+  .cat-tools{display:none;gap:3px;width:100%;flex-wrap:wrap}
+  body.edit-mode .cat{flex-wrap:wrap}
+  body.edit-mode .cat-tools{display:flex}
+  body.edit-mode .item{flex-wrap:wrap;cursor:default}
+  body.edit-mode .edit-tools{display:flex}
+  .edit-tools button{padding:4px 6px;font-size:12px}
+  .link-state{font-size:11px;color:var(--mut)}
+  .link-state.broken{color:var(--danger)}
   .sec.drop-ok{outline:2px dashed var(--acc);outline-offset:-3px;border-radius:10px;background:var(--panel2)}
   .tabs button.drop-ok{background:var(--acc);color:#fff;outline:2px dashed #fff;outline-offset:-3px}
   .item.drop-before{box-shadow:inset 0 3px 0 0 var(--acc)}
@@ -159,7 +171,7 @@
     header{flex-wrap:wrap;height:auto;padding:8px 10px;row-gap:8px;column-gap:8px}
     header h1{font-size:14px;flex:1 1 auto;min-width:0}
     .spacer{display:none}
-    #btnSettings,#btnAddBm,#btnLogin{order:1}
+    #btnSettings,#btnEditMode,#btnAddBm,#btnLogin{order:1}
     .tabs{flex:1 1 100%;order:2;overflow-x:auto}
     .search-wrap{flex:1 1 100%;order:3;width:100%}
 
@@ -200,6 +212,7 @@
   </span>
   <span class="spacer"></span>
   <button class="ghost" id="btnSettings">设置</button>
+  <button class="ghost" id="btnEditMode">编辑模式</button>
   <button class="primary" id="btnAddBm">+ 书签</button>
   <button class="primary" id="btnLogin">登录</button>
 </header>
@@ -225,7 +238,7 @@
   <span class="dot">·</span>
   <a id="siteUrl" href="https://www.090803.xyz" target="_blank" rel="noopener">www.090803.xyz</a>
   <span class="dot">·</span>
-  <span id="siteVer">v4.1</span>
+  <span id="siteVer">v4.8-noteone</span>
   <span class="dot">·</span>
   <a id="repoLink" href="https://github.com/jeffak000/webbook-cf" target="_blank" rel="noopener">GitHub 更新</a>
 </footer>
@@ -237,6 +250,9 @@
     <button class="ghost" id="btnCloseSettings">✕</button>
   </div>
   <div class="drawer-body">
+    <div class="setting"><div><label>检查网址</label><small>404/410 标记失效；超时、拒绝访问等标记待确认</small><div id="linkCheckInfo" aria-live="polite"></div></div><button id="btnCheckLinks" class="small">检查全部</button></div>
+    <div class="setting"><div><label>主屏幕与离线访问</label><small>安装后保留本机页面及书签快照；离线只读，退出登录清理离线页面。iPad：Safari 分享 → 添加到主屏幕。</small></div><button id="btnInstall" class="small">启用离线</button></div>
+    <div class="setting"><div><label>快速添加小工具</label><small>把下面链接拖到电脑书签栏，浏览网页时点击可收录</small><a id="bookmarklet" style="color:var(--acc)">保存到导航站</a></div></div>
     <div class="setting">
       <div><label>本地缓存</label><small>再次打开先显示缓存；修改内容后可手动同步最新数据</small></div>
       <button class="small" id="btnRefreshData">刷新数据</button>
@@ -331,7 +347,7 @@
   <div class="box">
     <h3 id="bmTitle">新建书签</h3>
     <div class="field"><label>标题</label><input id="bmTitle_in" placeholder="标题" /></div>
-    <div class="field"><label>URL</label><input id="bmUrl" placeholder="https://" /></div>
+    <div class="field"><label>URL</label><input id="bmUrl" placeholder="https://" /><button id="btnFetchTitle" type="button" class="small">获取标题与图标</button><small id="metadataStatus" aria-live="polite"></small></div>
     <div class="field"><label>分类</label><select id="bmCat"></select></div>
     <div class="field"><label>归属</label><select id="bmGroup"></select></div>
     <div class="field"><label>备注</label><textarea id="bmNote" placeholder="可选"></textarea></div>
@@ -388,6 +404,7 @@
 
 <div class="ctx" id="ctxMenu"></div>
 
-<script src="app.js?v=202610120128"></script>
+<script src="app.js?v=202610132057"></script>
 </body>
 </html>
+

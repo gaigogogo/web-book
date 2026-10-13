@@ -2,7 +2,7 @@
 ## 版本选择
 
 - **Cloudflare：v4.6 最终版，停止更新。** 使用 Workers + KV，下载 [CF v4.6](https://github.com/jeffak000/webbook-cf/releases/tag/v4.6)。
-- **腾讯云：v4.7-noteone，持续维护。** 使用 EdgeOne + Blob，源码位于 noteone/，下载 [noteone v4.7](https://github.com/jeffak000/webbook-cf/releases/tag/v4.7-noteone)。包括备注标识、本地快照缓存与手动刷新。
+- **腾讯云：v4.8-noteone，持续维护。** 使用 EdgeOne + Blob，源码位于 noteone/，下载 [noteone v4.8](https://github.com/jeffak000/webbook-cf/releases/tag/v4.8-noteone)。包括备注标识、本地快照缓存与手动刷新。
 
 两版部署配置不同，升级前导出 JSON 备份。需要 CF 的用户请选择 v4.6（含）或更早版本。
 

@@ -13,8 +13,8 @@
 // ---------------------------------------------------------------------------
 
 const PUBLIC = new Set(["categories", "bookmarks", "icon", "health"]);
-const APP_VERSION = "v4.6";                  // 语义版本，对应 GitHub 上的发行版
-const REPO_VERSION_URL = "https://raw.githubusercontent.com/jeffak000/webbook-cf/main/version.json";
+const APP_VERSION = "v4.8-noteone";                  // 语义版本，对应 GitHub 上的发行版
+const REPO_VERSION_URL = "https://raw.githubusercontent.com/jeffak000/webbook-cf/main/noteone/version.json";
 
 // --------------------------- 基础工具 ---------------------------
 function json(body, status = 200, extra = {}) {
@@ -339,7 +339,7 @@ function gatePage(site, msg) {
     "var f=document.getElementById('f'),b=document.getElementById('b'),p=document.getElementById('p'),e=document.querySelector('.err');" +
     "f.addEventListener('submit',async function(ev){ev.preventDefault();b.disabled=true;b.textContent='验证中…';" +
     "try{var r=await fetch('/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({password:p.value})});" +
-    "if(r.ok){location.replace('/');}else{e.textContent='密码错误';b.disabled=false;b.textContent='进入';}}" +
+    "if(r.ok){location.replace('/'+location.search);}else{e.textContent='密码错误';b.disabled=false;b.textContent='进入';}}" +
     "catch(err){e.textContent='网络错误，请重试';b.disabled=false;b.textContent='进入';}});" +
     "</script></body></html>";
   return new Response(html, {
@@ -437,6 +437,70 @@ async function refreshOneIcon(env, host) {
   return du;
 }
 
+// 只探测公共 HTTP(S) 域名；逐次检查重定向，限制时间、跳数及读取体积。
+function publicWebUrl(value) {
+  const u = new URL(String(value || ""));
+  const h = u.hostname.toLowerCase();
+  if (!/^https?:$/.test(u.protocol) || u.username || u.password ||
+      (u.port && !["80","443"].includes(u.port)) || !h.includes(".") ||
+      /^[\d.]+$/.test(h) || h.includes(":") ||
+      /(^|\.)(localhost|local|internal|lan|home|test|invalid)$/.test(h)) throw new Error("unsupported URL");
+  return u;
+}
+function decodeTitle(t) {
+  return t.replace(/<[^>]*>/g," ").replace(/&#(x[0-9a-f]+|\d+);/gi,(_,n)=> {
+    const v=n[0].toLowerCase()==="x"?parseInt(n.slice(1),16):Number(n);
+    return v>0&&v<=0x10ffff?String.fromCodePoint(v):"";
+  }).replace(/&(amp|lt|gt|quot|apos|nbsp);/gi,(_,n)=>({amp:"&",lt:"<",gt:">",quot:'"',apos:"'",nbsp:" "}[n.toLowerCase()])).replace(/\s+/g," ").trim().slice(0,200);
+}
+async function checkPublicDns(host, signal) {
+  for (const type of ["A","AAAA"]) {
+    const r=await fetch("https://dns.google/resolve?name="+encodeURIComponent(host)+"&type="+type,{signal});
+    if(!r.ok)throw new Error("DNS check failed");
+    const j=await r.json();if(j.Status!==0)throw new Error("DNS failed");
+    for(const answer of j.Answer||[]) {
+      if(answer.type===1) {
+        const p=answer.data.split(".").map(Number);
+        if(p[0]===0||p[0]===10||p[0]===127||p[0]>=224||p[0]===169&&p[1]===254||p[0]===172&&p[1]>=16&&p[1]<=31||p[0]===192&&(p[1]===168||p[1]===0)||p[0]===100&&p[1]>=64&&p[1]<=127||p[0]===198&&(p[1]===18||p[1]===19))throw new Error("Private address");
+      }
+      if(answer.type===28&&!/^2[0-9a-f]{3}:/i.test(answer.data))throw new Error("Unsupported IPv6");
+    }
+  }
+}
+async function inspectUrl(value, metadata) {
+  const checked_at = Date.now();
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 6500);
+  try {
+    let u = publicWebUrl(value), r;
+    for (let i=0;i<5;i++) {
+      await checkPublicDns(u.hostname,ctrl.signal);
+      r=await fetch(u.href,{method:metadata?"GET":"HEAD",redirect:"manual",signal:ctrl.signal});
+      if(!metadata&&[405,501].includes(r.status)) {
+        if(r.body)await r.body.cancel();
+        r=await fetch(u.href,{method:"GET",headers:{Range:"bytes=0-1023"},redirect:"manual",signal:ctrl.signal});
+      }
+      if ([301,302,303,307,308].includes(r.status)) {
+        const location=r.headers.get("location");
+        if (!location) break;
+        if (r.body) await r.body.cancel();
+        u=publicWebUrl(new URL(location,u).href);continue;
+      }
+      break;
+    }
+    const status = r.ok?"ok":([404,410].includes(r.status)?"broken":"unknown");
+    let title="";
+    if (metadata && r.ok && /html/i.test(r.headers.get("content-type")||"")) {
+      const reader=r.body?.getReader();let text="",size=0;
+      const decoder=new TextDecoder();
+      if(reader) { try { while(size<131072){const part=await reader.read();if(part.done)break;size+=part.value.length;text+=decoder.decode(part.value,{stream:true});if(/<\/title>/i.test(text))break;} } finally {await reader.cancel();} }
+      title=decodeTitle((text.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i)||[])[1]||"");
+    } else if(r.body)await r.body.cancel();
+    return {status,http_status:r.status,checked_at,title};
+  } catch { return {status:"unknown",http_status:null,checked_at,title:""}; }
+  finally {clearTimeout(timer);}
+}
+
 // --------------------------- 主路由 ---------------------------
 const worker = {
   async fetch(request, env, ctx) {
@@ -445,6 +509,12 @@ const worker = {
     }
     const url = new URL(request.url);
     const method = request.method.toUpperCase();
+    if (["/sw.js","/manifest.webmanifest","/pwa-icon.png"].includes(url.pathname) && ["GET","HEAD"].includes(method)) {
+      const response=await env.ASSETS.fetch(request);
+      const headers=new Headers(response.headers);headers.set("cache-control","no-cache");
+      if(url.pathname==="/sw.js")headers.set("service-worker-allowed","/");
+      return new Response(response.body,{status:response.status,headers});
+    }
 
     // 非 /api 请求：先过访问锁，再交给 Workers Assets 托管静态前端
     if (!url.pathname.startsWith("/api")) {
@@ -551,6 +621,31 @@ const worker = {
     const sensitive = ["backup", "backup-email", "restore", "data", "icons", "access", "password"];
     if (acc.gate || isWrite || sensitive.includes(head)) {
       if (!(await requireAuth(request, env))) return json({ error: "unauthorized" }, 401);
+    }
+
+    if (head === "url-metadata" && method === "POST") {
+      const body = await readBody(request);
+      try {
+        const result = await inspectUrl(body.url, true);
+        if (result.status === "ok" && ctx?.waitUntil) ctx.waitUntil(maybeFetchIcon(env, new URL(body.url).host));
+        return json(result);
+      } catch { return json({error:"无法读取网页信息，请手动填写标题"}, 400); }
+    }
+    if (head === "check-links" && method === "POST") {
+      const body = await readBody(request);
+      const ids = Array.isArray(body.ids) ? [...new Set(body.ids)].slice(0, 4) : [];
+      if (!ids.length) return json({error:"请选择待检查书签"},400);
+      const bookmarks = await getBms(env);
+      const selected = bookmarks.filter(b => ids.includes(b.id));
+      const results = await Promise.all(selected.map(async b => ({id:b.id, url:b.url, ...(await inspectUrl(b.url, false))})));
+      // 探测完成后重读，避免长时间探测期间覆盖其他设备的新增/修改。
+      const latest = await getBms(env);
+      for (const result of results) {
+        const b = latest.find(b => b.id === result.id && b.url === result.url);
+        if (b) Object.assign(b, {link_status:result.status, link_http_status:result.http_status, link_checked_at:result.checked_at});
+      }
+      await setBms(env, latest);
+      return json({results});
     }
 
     // ---- 首屏一次性拉取（减少 4 次往返 + 4 次 KV 冷读）----
@@ -672,6 +767,8 @@ const worker = {
           if (body[f] != null) b[f] = f === "sort" ? Number(body[f]) : body[f];
         }
         if (body.category_id !== undefined) b.category_id = body.category_id; // 允许显式置 null
+        if (body.note === null) b.note = null;
+        if(body.url !== undefined) {delete b.link_status;delete b.link_http_status;delete b.link_checked_at;}
         if (typeof body.group === "string" && body.group) b.group = body.group;
         await setBms(env, bms);
         const host = body.url
@@ -918,3 +1015,4 @@ const worker = {
     return json({ error: "not found", path }, 404);
   },
 };
+

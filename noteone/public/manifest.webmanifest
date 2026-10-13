@@ -1,0 +1,1 @@
+{"id":"/","name":"书签导航站","short_name":"导航站","start_url":"/","scope":"/","display":"standalone","background_color":"#111217","theme_color":"#111217","icons":[{"src":"/pwa-icon.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}],"share_target":{"action":"/","method":"GET","params":{"title":"title","url":"add"}}}
