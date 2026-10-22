@@ -19,10 +19,10 @@ async function main(){
  if(!publishOnly){
   fs.writeFileSync(path.join(root,'RELEASE_NOTES.md'),notes);
   for(const f of ['public/app.js','worker-source.js'])replace(f,t=>t.replace(/const APP_VERSION = "[^"]+"/,'const APP_VERSION = "'+tag+'"').replaceAll('jeffak000/webbook-cf',repo).replaceAll('gaigogogo/webbook-cf',repo));
-  replace('public/index.html',t=>t.replace(/(<span id="siteVer">)[^<]+/,'$1'+tag).replaceAll('jeffak000/webbook-cf',repo).replaceAll('gaigogogo/webbook-cf',repo));
+  replace('public/index.html',t=>t.replace(/(<span id="siteVer">)[^<]+/,'$1'+tag.replace(/-noteone$/, ' · EdgeOne')).replaceAll('jeffak000/webbook-cf',repo).replaceAll('gaigogogo/webbook-cf',repo));
   for(const f of ['package.json','package-lock.json']){const p=path.join(root,f),j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=number+'.0';if(j.packages?.[''])j.packages[''].version=number+'.0';fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');}
   fs.writeFileSync(path.join(root,'version.json'),JSON.stringify({version:tag,url:releaseUrl,notes:'腾讯云'+number+'更新：'+notes.split('\n').filter(line=>line.startsWith('- ')).slice(0,3).map(line=>line.slice(2)).join('；')},null,2)+'\n');
-  replace('README.md',t=>t.replace(/^# .*$/m,'# noteone v'+number+' / EdgeOne 书签导航站').replaceAll('jeffak000/webbook-cf',repo).replaceAll('gaigogogo/webbook-cf',repo));
+  fs.writeFileSync(path.join(root,'README.md'),fs.readFileSync(path.join(root,'ROOT_README.md'),'utf8').replaceAll('{{VERSION}}',number).replaceAll('{{TAG}}',tag));
   for(const file of ['public/app.js','worker-source.js','public/sw.js'])run('--check',[file]);
   for(const test of ['test-link-speed.cjs','test-new-tools.cjs','test-book-cache.cjs','test-offline.cjs'])run('maintenance/'+test);
   run('bump.cjs');run('build.cjs');deploy();
@@ -33,11 +33,10 @@ async function main(){
  const headers={Authorization:'Bearer '+token,Accept:'application/vnd.github+json'};
  async function gh(p,method='GET',body){const r=await fetch('https://api.github.com/repos/'+repo+p,{method,headers:{...headers,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(60000)});const j=await r.json();if(!r.ok)throw Error('GitHub '+r.status+' '+j.message);return j;}
  const meta=await gh(''),ref=await gh('/git/ref/heads/'+meta.default_branch),parent=await gh('/git/commits/'+ref.object.sha);
- const files=['public/app.js','public/index.html','public/manifest.webmanifest','public/sw.js','worker-source.js','build.cjs','bump.cjs','package.json','package-lock.json','edgeone.json','version.json','README.md','AGENTS.md','RELEASE_NOTES.md','edge-functions/[[default]].js','edge-functions/index.js','maintenance/release.cjs','maintenance/deploy-edgeone.cjs','maintenance/test-link-speed.cjs','maintenance/test-new-tools.cjs','maintenance/test-book-cache.cjs','maintenance/test-offline.cjs'];
+ const files=['public/app.js','public/index.html','public/manifest.webmanifest','public/sw.js','worker-source.js','build.cjs','bump.cjs','package.json','package-lock.json','edgeone.json','version.json','README.md','ROOT_README.md','AGENTS.md','RELEASE_NOTES.md','edge-functions/[[default]].js','edge-functions/index.js','maintenance/release.cjs','maintenance/deploy-edgeone.cjs','maintenance/test-link-speed.cjs','maintenance/test-new-tools.cjs','maintenance/test-book-cache.cjs','maintenance/test-offline.cjs'];
  const icon=await gh('/git/blobs','POST',{content:fs.readFileSync(path.join(root,'public/pwa-icon.png')).toString('base64'),encoding:'base64'});
- const remote=await gh('/contents/README.md');let readme=Buffer.from(remote.content,'base64').toString('utf8').replaceAll('jeffak000/webbook-cf',repo).replaceAll('gaigogogo/webbook-cf',repo);
- readme=readme.replace(/v\d+\.\d+-noteone，持续维护/g,tag+'，持续维护').replace(/下载 \[noteone v\d+\.\d+\]\(https:\/\/github.com\/gaigogogo\/web-book\/releases\/tag\/v\d+\.\d+-noteone\)/g,'下载 [noteone v'+number+']('+releaseUrl+')');
- const tree=await gh('/git/trees','POST',{base_tree:parent.tree.sha,tree:[...files.map(p=>({path:'noteone/'+p,mode:'100644',type:'blob',content:fs.readFileSync(path.join(root,p),'utf8')})),{path:'noteone/public/pwa-icon.png',mode:'100644',type:'blob',sha:icon.sha},{path:'README.md',mode:'100644',type:'blob',content:readme}]});
+ let readme=fs.readFileSync(path.join(root,'ROOT_README.md'),'utf8').replaceAll('{{VERSION}}',number).replaceAll('{{TAG}}',tag);
+ const tree=await gh('/git/trees','POST',{base_tree:parent.tree.sha,tree:[...files.map(p=>({path:p.startsWith('.github/')?p:'noteone/'+p,mode:'100644',type:'blob',content:fs.readFileSync(path.join(root,p),'utf8')})),{path:'noteone/public/pwa-icon.png',mode:'100644',type:'blob',sha:icon.sha},{path:'README.md',mode:'100644',type:'blob',content:readme}]});
  const commit=await gh('/git/commits','POST',{message:'release '+tag+': update noteone source and release notes',tree:tree.sha,parents:[parent.sha]});await gh('/git/refs/heads/'+meta.default_branch,'PATCH',{sha:commit.sha});console.log('Published source '+commit.html_url);
  const releases=await gh('/releases');let release=releases.find(r=>r.tag_name===tag);
  release=release?await gh('/releases/'+release.id,'PATCH',{body:notes}):await gh('/releases','POST',{tag_name:tag,target_commitish:commit.sha,name:tag+' · 腾讯云版更新',body:notes,draft:false,prerelease:false,make_latest:'true'});

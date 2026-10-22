@@ -6,8 +6,8 @@ let BMS = [];
 let ICONS = {};
 let GROUPS = [{ id: "personal", name: "个人区" }, { id: "work", name: "工作区" }];
 let SITE = { name: "gai溜子导航站", author: "gai溜子到处跑", url: "www.090803.xyz" };
-const VERSION = "202610222338";
-const APP_VERSION = "v4.9-noteone";
+const VERSION = "202610230000";
+const APP_VERSION = "v4.10-noteone";
 const SNAPSHOT_VERSION = 4;
 const REPO_URL = "https://github.com/gaigogogo/web-book";
 let SEARCH_Q = "";
@@ -212,7 +212,7 @@ function renderSite() {
   const u = (SITE.url || "").trim();
   el("siteUrl").textContent = u;
   el("siteUrl").href = /^https?:\/\//i.test(u) ? u : (u ? "https://" + u : "#");
-  el("siteVer").textContent = APP_VERSION;
+  el("siteVer").textContent = APP_VERSION.replace(/-noteone$/, " · EdgeOne");
 }
 
 function renderTabs() {

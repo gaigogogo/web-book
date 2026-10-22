@@ -1,328 +1,170 @@
-<!-- platform-releases -->
-## 版本选择
+# Web Book · EdgeOne 书签导航站
 
-- **Cloudflare：v4.6 最终版，停止更新。** 使用 Workers + KV，下载 [CF v4.6](https://github.com/gaigogogo/web-book/releases/tag/v4.6)。
-- **腾讯云：v4.9-noteone，持续维护。** 使用 EdgeOne + Blob，源码位于 noteone/，下载 [noteone v4.9](https://github.com/gaigogogo/web-book/releases/tag/v4.9-noteone)。包括备注标识、本地快照缓存与手动刷新。
+一个轻量的网址收藏与导航站：用分组、分类、搜索和备注整理常用网址，支持电脑、手机和 iPad 浏览及维护。
 
-两版部署配置不同，升级前导出 JSON 备份。需要 CF 的用户请选择 v4.6（含）或更早版本。
+**当前维护平台：腾讯云 EdgeOne Pages / Makers。当前版本：v4.10。**
 
-# webbook-cf · 极简书签导航站
+[在线演示](https://book.090803.xyz/) · [下载最新版](https://github.com/gaigogogo/web-book/releases/tag/v4.10-noteone) · [全部版本](https://github.com/gaigogogo/web-book/releases) · [完整介绍与更新历史](https://www.090803.xyz/feed/10)
 
-> 一个跑在 Cloudflare Workers + KV 上的**免费**书签导航站。不用买服务器，不用装数据库，自带访问密码锁，打开即用，数据全在你自己手里。
->
-> A free, serverless bookmark hub on Cloudflare Workers + KV. Password-protected, zero backend to maintain.
+> 平台名称统一为 **EdgeOne**。仓库中的 `noteone/` 是沿用的历史源码目录名，Release 标签中的 `-noteone` 为兼容历史下载和更新检查而保留，不代表另一种平台。
 
-**在线演示**：https://book.090803.xyz
+## 一、先选对版本
 
-**适合谁**：想把收藏的网址整理成一个导航页、又能手机电脑同步访问的人。
+| 版本 | 平台与存储 | 状态 | 下载 |
+| --- | --- | --- | --- |
+| **EdgeOne v4.10** | 腾讯云 EdgeOne + Blob | 持续维护，推荐新部署使用 | [EdgeOne 最新版](https://github.com/gaigogogo/web-book/releases/tag/v4.10-noteone) |
+| Cloudflare v4.6 | Cloudflare Workers + KV | 最终保留版，停止更新 | [CF v4.6](https://github.com/gaigogogo/web-book/releases/tag/v4.6) |
 
----
+腾讯云正式入口：[book.090803.xyz](https://book.090803.xyz/)；CF 独立保留入口：[bookcf.090803.xyz](https://bookcf.090803.xyz/)。两站数据独立，不能当作自动同步的镜像。
 
-## 目录
+**需要 CF 的用户请选择 v4.6（含）或更早版本。** 不要把 EdgeOne 代码直接覆盖进 CF Worker。仓库根目录保留的旧 Worker 文件属于历史实现；当前 EdgeOne 代码请看 [`noteone/`](https://github.com/gaigogogo/web-book/tree/main/noteone)。
 
-- [一、它能做什么](#一它能做什么)
-- [二、开始前要准备什么](#二开始前要准备什么)
-- [三、手把手安装（Windows）](#三手把手安装windows)
-- [四、装好之后必做的两件事](#四装好之后必做的两件事)
-- [五、绑定自己的域名（可选）](#五绑定自己的域名可选)
-- [六、日常使用](#六日常使用)
-- [七、备份与恢复](#七备份与恢复)
-- [八、怎么升级到新版](#八怎么升级到新版)
-- [九、常见问题 FAQ](#九常见问题-faq)
-- [十、版本更新记录](#十版本更新记录)
-- [十一、安全提醒](#十一安全提醒)
+## 二、主要功能
 
----
+- 分组和分类：按用途组织网址，支持新建、改名、移动、排序和数量统计。
+- 全局搜索：跨分组搜索标题、URL、备注与分类名；支持 Ctrl/⌘+K。
+- 书签维护：新增、编辑、删除、拖拽移动；保存成功直接更新页面，减少全量重载。
+- 快速添加：粘贴 HTTP(S) URL 自动尝试获取网页标题、后台获取图标；提供书签栏小工具。
+- 备注提示：带备注的书签显示橙色标识，悬停或聚焦快速查看。
+- 手机编辑：编辑模式提供编辑、删除、前后排序按钮；书签支持触屏长按菜单。手机宽度不超过700px时隐藏分类导航。
+- 链接检测：每批8条，支持继续、暂停、重新检查全部；异常自动重试。检测状态文字10分钟后自动隐藏，记录保留。
+- 访问控制：共享密码、公开只读开关、免密链接；不是多用户账号系统。
+- 备份恢复：导出/恢复 JSON，可通过 Resend 发送备份附件。
+- 加载优化：本地快照先显示、后台同步、资源版本化、手动刷新数据。
+- PWA：可添加到主屏幕；主动启用后支持本机离线只读，不提供离线写入。
 
-## 一、它能做什么
+自动标题遇到动态网页、登录限制或网络问题时可手填。链接检测中404/410标记失效，超时、拒绝访问等标为“待确认”，不等于确定死链。检测速度取决于目标站网络。
 
-| 功能 | 说明 |
-|---|---|
-| **分组 + 分类** | 两级整理，比如「工作 → 设计工具」「个人 → 影视」 |
-| **一键加书签** | 分类名右侧和每张链接卡片末尾都有「＋」，点一下自动归到该分类并排最前 |
-| **全站访问锁** | 没输密码前整站锁屏，数据接口全部 401，一条书签都不泄露 |
-| **免密分享链接** | 生成 48 位密钥，凭 `https://你的域名/k/<密钥>` 直接进站，可随时作废 |
-| **站内全局搜索** | 标题/网址/备注/分类名一次搜全，`Ctrl+K`（Mac `⌘+K`）聚焦，`Esc` 清空 |
-| **图标自动抓取** | 按域名自动取网站图标，浏览器缓存 1 天 |
-| **备份到邮箱** | 填个邮箱点一下，全量备份 JSON 作为附件发过去 |
-| **检查更新** | 页脚显示版本号，设置里一键比对 GitHub 最新版 |
-| **手机适配** | 头部自动换行、分类变横向滚动胶囊、书签两列撑满 |
-| **极速首屏** | 单请求拉全量数据 + 本地快照，二次访问秒开 |
+## 三、技术与目录
 
-技术架构：
+前端为原生 HTML/CSS/JavaScript，后端为 EdgeOne 函数入口，存储使用 `@edgeone/pages-blob`（Blob 名称 `bookmarks`，强一致读取）。无需为导航站另配 Turso 或 SQL 数据库。
 
-```
-浏览器 ──HTTPS──> Cloudflare Worker (worker/index.js)
-                    ├─ 访问锁拦截（未登录 → 锁屏页 / 401）
-                    ├─ /api/*  业务逻辑（书签/分类/图标/登录/免密）
-                    ├─ Workers Assets 托管 public/ 静态前端
-                    └─ Cloudflare KV (BOOKMARKS) 存数据
+```text
+noteone/                       # 当前 EdgeOne 版
+  public/index.html            # 页面和样式
+  public/app.js                # 交互、搜索与缓存
+  public/sw.js                 # 离线页面缓存
+  public/manifest.webmanifest  # PWA 安装信息
+  worker-source.js             # API、鉴权与业务逻辑
+  build.cjs                    # 将页面与后端构建为部署入口
+  bump.cjs                     # 更新浏览器资源版本号
+  edge-functions/              # 构建生成文件
+  edgeone.json                 # 构建配置
+  version.json                 # 当前发行版本与更新入口
+  RELEASE_NOTES.md             # 当前版本说明
+  maintenance/                # 维护与发布脚本
 ```
 
-- 前端：`public/index.html` + `public/app.js`（原生 JS，**不需要打包构建**）
-- 后端：`worker/index.js`（单文件 Worker）
+请修改 `public/` 和 `worker-source.js` 后重新构建，不要只修改生成的 `edge-functions/`。`dist/` 仅是部署占位页；只部署静态目录无法提供完整网站和 API。
 
----
+## 四、部署到 EdgeOne
 
-## 二、开始前要准备什么
+### 准备条件
 
-只要三样，全免费：
+1. Node.js 18或以上及 npm；现有CLI部署流程使用 EdgeOne CLI。
+2. 腾讯云国际 EdgeOne Pages / Makers 项目及相应部署权限。
+3. **可用区必须选择「全球可用区（不含中国大陆）」**，CLI 参数为 `-a overseas`。
+4. 配置 Blob 存储 `bookmarks` 和站点密码。套餐、免费额度及域名条件以平台当前规则为准，本文不承诺永久免费或固定访问速度。
 
-| 需要 | 说明 | 费用 |
-|---|---|---|
-| Cloudflare 账号 | 去 https://dash.cloudflare.com/sign-up 用邮箱注册 | 免费 |
-| Node.js | 去 https://nodejs.org 下载 **LTS 版本**，一路下一步安装 | 免费 |
-| 本项目代码 | 下面会讲怎么拿 | 免费 |
+### 构建
 
-> 不需要服务器、不需要域名（用 Cloudflare 送的 `*.workers.dev` 地址就能访问）。
-
----
-
-## 三、手把手安装（Windows）
-
-全程约 10 分钟。按顺序做就行。
-
-### 步骤 1：拿到代码
-
-**方式 A（推荐，会用 git）**：打开命令行，执行
+克隆仓库后进入 EdgeOne 源码目录；若下载的是独立 ZIP，则进入包含 `package.json` 的目录。
 
 ```bash
 git clone https://github.com/gaigogogo/web-book.git
-cd webbook-cf
+cd web-book/noteone
+npm ci
+node bump.cjs
+node build.cjs
 ```
 
-**方式 B（不会 git）**：打开 https://github.com/gaigogogo/web-book → 点绿色 **Code** 按钮 → **Download ZIP** → 解压到本地任意文件夹（比如 `D:\webbook-cf`）。
+### 发布
 
-### 步骤 2：装 wrangler（Cloudflare 的部署工具）
-
-在**项目文件夹里**打开命令行（资源管理器地址栏输入 `cmd` 回车即可），执行：
+先通过 EdgeOne CLI 登录自己的账号并确认项目配置，然后部署：
 
 ```bash
-npm install wrangler
+npx edgeone@1.6.41 makers deploy -n your-project-name -a overseas --skip-ai-gateway-sync --json
 ```
 
-装完别关这个窗口，后面都在这里执行。
+将 `your-project-name` 换成自己的项目名。不要照搬作者项目ID、密码或令牌。绑定自定义域名后按控制台返回值配置 DNS 与 HTTPS。
 
-### 步骤 3：找到你的「账户 ID」
+## 五、配置说明
 
-1. 登录 https://dash.cloudflare.com
-2. 左侧点 **Workers 和 Pages**（旧版界面叫 Workers）
-3. 右侧能看到 **账户 ID**，一串 32 位字符，点它复制
+| 配置 | 用途 |
+| --- | --- |
+| Blob `bookmarks` | 保存分组、分类、书签、图标、站点信息和访问配置 |
+| `APP_PASSWORD` | 初始登录密码，务必设置；站内修改后的存储密码优先 |
+| `RESEND_API_KEY` | 可选，备份邮件发送能力 |
+| `MAIL_FROM` | 可选，已验证域名下的发件地址，如 `导航站备份 <backup@example.com>` |
 
-记下来，等下要用。
-
-### 步骤 4：创建 API 令牌（部署凭证）
-
-1. 右上角头像 → **我的个人资料** → 左侧 **API 令牌**
-   （直达链接：https://dash.cloudflare.com/profile/api-tokens）
-2. 点 **创建令牌** → 找到 **编辑 Cloudflare Workers** 这一行，点右边 **使用模板**
-3. 权限已经帮你选好了，确认包含这两项：
-   - `账户 - Workers 脚本 - 编辑`
-   - `账户 - Workers KV 存储 - 编辑`
-4. 账户资源选 **你的账户**；区域资源保持默认
-5. 点 **继续以显示摘要** → **创建令牌**
-6. **令牌只显示这一次**，立刻复制保存好（关掉页面就再也看不到了）
-
-### 步骤 5：创建 KV 数据库
-
-回到命令行，执行：
-
-```bash
-npx wrangler kv namespace create BOOKMARKS
-```
-
-第一次会让你登录 Cloudflare（浏览器点「Allow」授权）。成功后会输出类似：
-
-```
-✨ Success!
-id = "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
-```
-
-**把这串 id 复制下来** —— 这是你的数据库编号。
-
-### 步骤 6：改配置文件
-
-用记事本（或 VS Code）打开项目里的 `wrangler.toml`，改两处：
-
-```toml
-# 第 7 行：把 YOUR_CLOUDFLARE_ACCOUNT_ID 换成步骤 3 的账户 ID
-account_id = "你的32位账户ID"
-
-# 第 12 行：把 YOUR_BOOKMARKS_KV_ID 换成步骤 5 的数据库 id
-kv_namespaces = [
-  { binding = "BOOKMARKS", id = "你的KV数据库id" }
-]
-```
-
-**注意**：引号要保留，只替换引号里面的内容。
-
-### 步骤 7：部署
-
-在命令行执行（把 `cfut_你的令牌` 换成步骤 4 复制的令牌）：
-
-```bash
-set CLOUDFLARE_API_TOKEN=cfut_你的令牌
-npx wrangler deploy
-```
-
-看到 `Deployed webbook-cf triggers` 和一串网址，就是成功了：
-
-```
-https://webbook-cf.你的子域.workers.dev
-```
-
-**打开那个网址，就能看到你的书签导航站了。**
-
-> 如果改用 PowerShell，把 `set X=Y` 换成 `$env:X="Y"`。
-> 如果想省掉每次输令牌，可以执行 `npx wrangler login` 用浏览器登录一次，之后直接 `npx wrangler deploy` 即可。
-
-### 步骤 8（可选）：一键部署脚本
-
-`deploy.example.bat` 是 Windows 一键部署模板：自动换版本号 → 部署 → 清缓存。
-
-把里面的占位路径和凭据填好后，**重命名成 `deploy.bat`**，以后双击就能部署。
-该文件已在 `.gitignore` 里，**不会被上传到 GitHub**，密钥安全。
-
----
-
-## 四、装好之后必做的两件事
-
-### 1. 改掉默认密码
-
-默认密码是 `admin`，**任何人都能进**。
-
-登录后点右上角 **设置** → 找到修改密码 → 改成你自己的。
-
-或者用命令行设置（更安全，密码不进代码）：
-
-```bash
-npx wrangler secret put APP_PASSWORD
-```
-
-### 2. 生成免密链接（方便手机访问）
-
-设置面板里点「免密访问密钥」→ 生成 → 复制链接 `https://你的域名/k/<密钥>`。
-
-手机上打开这个链接就能直接进，不用每次输密码。密钥泄露时可一键重新生成，旧链接立即失效。
-
----
-
-## 五、绑定自己的域名（可选）
-
-前提：你的域名已经接入 Cloudflare（NS 指向 Cloudflare）。
-
-打开 `wrangler.toml`，把最后这段的注释符号 `#` 删掉，改成你的域名：
-
-```toml
-routes = [
-  { pattern = "book.your-domain.com", custom_domain = true }
-]
-```
-
-保存后重新执行 `npx wrangler deploy`。Cloudflare 会自动帮你申请证书、配好解析。
-
----
+邮件发给非测试收件人时，需在 Resend 验证自己的发信域名。密钥仅保存在平台私有环境或本机私有配置，不写进源码、README 或下载包。
 
 ## 六、日常使用
 
-| 操作 | 怎么做 |
-|---|---|
-| 加书签 | 顶部「+ 书签」，或点分类/卡片上的「＋」直接加到该分类 |
-| 搜索 | 顶部搜索框，或 `Ctrl+K` / `⌘+K` 唤起 |
-| 拖动排序 | 书签直接拖；分区在「设置 → 分区管理」里按住 ⠿ 拖动 |
-| 改图标 | 自动抓，抓不到可在编辑里填图标地址 |
-| 切分组 | 顶部「个人 / 工作」标签 |
-| 检查更新 | 设置 → 关于/更新 → 检查更新 |
+进入网站后选择分组或搜索网址。新增可使用顶部“+书签”或分类旁“+”；电脑右键打开管理菜单，手机可用“编辑模式”。
 
----
+新增、编辑、移动网址会直接保存到 Blob，**无需重新部署代码**。其他设备可重新打开页面，或在设置中点“刷新数据”。
 
-## 七、备份与恢复
+设置中的“继续检查”跳过24小时内正常/失效结果和1小时内待确认结果。要强制重新探测所有网址，使用“重新检查全部”。检测时保持页面打开，暂停或中断后已完成结果保留。
 
-数据存在 Cloudflare KV（云端），不在代码里。建议定期备份。
+PWA 首次需联网登录并在设置中启用离线。iPad 使用 Safari 分享菜单中的“添加到主屏幕”。离线仅显示已保存在当前设备的内容；共享设备请谨慎启用并在使用后退出登录。
 
-**方式 1：网页导出**
-设置 → 备份 → 下载，得到 `bookmarks-日期.json`。
+## 七、怎么升级到新版
 
-**方式 2：发到邮箱**（推荐，不容易丢）
-设置 → 备份到邮箱 → 填邮箱 → 发送。会作为附件发过去。
-需要配置 Resend 邮件服务（免费 3000 封/月）：
+### 当前可用：EdgeOne 手动升级
+
+1. 在设置中导出 JSON 备份。
+2. 下载 [最新 EdgeOne ZIP](https://github.com/gaigogogo/web-book/releases/tag/v4.10-noteone)，或在本地仓库执行 `git pull`。
+3. 使用完整 EdgeOne 源码构建，不能只替换 CF 文档中的三个文件：
 
 ```bash
-npx wrangler secret put RESEND_API_KEY   # 填 re_ 开头的 key
-npx wrangler secret put MAIL_FROM        # 填 "Book Hub <backup@你的域名>"
+cd noteone
+npm ci
+node bump.cjs
+node build.cjs
+npx edgeone@1.6.41 makers deploy -n your-project-name -a overseas --skip-ai-gateway-sync --json
 ```
 
-> ⚠️ 两个都要设！只填 KEY 不填 `MAIL_FROM` 的话，发件人会走默认值，导致只能发到你自己注册邮箱。
+4. 部署到**同一个项目**，保留原有 Blob 和环境变量；不要删除存储，不执行清空、恢复或旧迁移导入脚本。
+5. 刷新网站，检查页脚版本；必要时按 Ctrl+Shift+R。安装过PWA的设备也应联网重新打开。
 
-**方式 3：命令行脚本**
-`restore.example.mjs` 是模板，改成 `restore-kv.mjs` 后可批量导入导出（已在 `.gitignore`，不会上传）。
+正常的同项目代码部署不会主动删除 Blob 书签，但仍建议事先备份。不要把“重新建项目”“覆盖恢复数据”与“更新代码”混为一谈。
 
-**恢复**：设置 → 恢复 → 选择之前导出的 JSON 文件。
+### 后台一键更新：接入中，尚未可用
 
----
+计划流程：设置 → 检查更新 → 一键更新 → 输入站点密码 → GitHub Actions 构建部署 → 页面查看进度。
 
-## 八、怎么升级到新版
+目前工作流已添加，功能代码已准备，但仓库 Secret 配置权限尚未补齐，**尚未完成上线和端到端验证**。因此当前升级仍按上面的手动方法，不能将“检查更新”理解为已经自动安装。
 
-方法 A（简单）：下载新版代码，只替换 `worker/index.js`、`public/index.html`、`public/app.js` 三个文件，然后重新 `npx wrangler deploy`。**数据不会丢**（数据在 KV 里）。
+### 维护者自动发布
 
-方法 B（会用 git）：
+本仓库维护流程在一组代码改动完成后递增版本（4.9 → 4.10 → 4.11），同步 GitHub 源码、独立 ZIP、中文 Release 说明及博客。`maintenance/release.cjs` 是作者本机维护脚本，依赖作者私有配置；其他部署者不能直接照搬运行。
 
-```bash
-git pull
-npx wrangler deploy
-```
+自动发布新版本与部署者安装新版本是两件事。当前站内“检查更新”负责提示发行版和下载入口。
 
-升级后浏览器按 `Ctrl+Shift+R` 强制刷新，否则可能看到旧界面。
+### CF 历史版
 
-站点内的「检查更新」会提示新版本并跳转到 GitHub 下载页。
+CF 用户继续使用 [v4.6及更早版本](https://github.com/gaigogogo/web-book/releases/tag/v4.6) 自带文档及 `wrangler deploy` 流程。CF 的 KV 配置不适用于 EdgeOne；本 README 的当前部署命令以 EdgeOne 为准。
 
----
+## 八、版本与更新说明
 
-## 九、常见问题 FAQ
+| 版本 | 主要内容 |
+| --- | --- |
+| **v4.10** | 仓库说明重整为 EdgeOne 主版本；网站页脚显示 EdgeOne；区分可用升级流程与尚未接通的一键更新 |
+| [v4.9](https://github.com/gaigogogo/web-book/releases/tag/v4.9-noteone) | 手机分类导航隐藏、链接检测提速与续查、状态文字10分钟自动隐藏、维护发布流程 |
+| [v4.8](https://github.com/gaigogogo/web-book/releases/tag/v4.8-noteone) | 自动标题、小工具、链接检测、手机编辑模式、长按菜单与PWA |
+| [v4.7](https://github.com/gaigogogo/web-book/releases/tag/v4.7-noteone) | EdgeOne独立版、备注标识、本地快照与手动刷新、保存和移动优化 |
+| [CF v4.6](https://github.com/gaigogogo/web-book/releases/tag/v4.6) | Cloudflare最终保留版，停止更新 |
 
-| 问题 | 解决 |
-|---|---|
-| `npx wrangler` 报错找不到命令 | Node.js 没装好，重装 LTS 版并重启命令行 |
-| 部署时报 `Authentication error` | 令牌错了或过期，重新生成一个；确认 `set` 和 `npx` 在**同一个**命令行窗口执行 |
-| 提示 KV namespace 不存在 | 步骤 5 的 id 填错了，重新 `npx wrangler kv namespace list` 查 |
-| 打开是 404 / 空白 | 等 1 分钟再试；或用 `*.workers.dev` 地址先验证 |
-| 改了代码但页面没变 | 浏览器强制刷新 `Ctrl+Shift+R`；确认执行过 `node bump.js` |
-| 忘了密码 | 命令行 `npx wrangler secret put APP_PASSWORD` 重设 |
-| 手机打开排版很乱 | 已适配，先强制刷新；旧版本缓存问题 |
-| 部署一直卡住 | 检查网络代理；代理环境可设 `set NO_PROXY=api.cloudflare.com` |
-| 免费额度够用吗 | Workers 每天 10 万请求、KV 每天 10 万读，个人使用远远够 |
+完整历史以 [GitHub Releases](https://github.com/gaigogogo/web-book/releases) 和 [博客说明](https://www.090803.xyz/feed/10) 为准。
 
----
+## 九、当前边界
 
-## 十、版本更新记录
+- 当前是共享密码管理，不提供注册、用户独立收藏或多角色账号系统。
+- Blob 数组以整份JSON读写，多设备同时修改存在覆盖风险；不是事务型数据库。
+- 免密链接未实现独立只读角色，不应当作严格的只读分享权限使用。
+- 图标、标题抓取和链接检测受外部站点与网络限制；不保证所有网站都能探测。
+- JSON备份包含分组、分类、书签、图标，不是环境变量和全部站点设置的完整备份。
+- 手机布局已适配，但各浏览器的触屏菜单、PWA与系统分享支持可能不同。
 
-最新在上。
-
-| 版本 | 日期 | 更新内容 |
-|---|---|---|
-| **v4.6** | 2026-09-30 | 修复 Zen 浏览器左侧右键删除分类无反应：改用页面内确认弹窗；确认后才删除分类及其书签，支持取消和 Esc 关闭；删除成功立即刷新列表与本地快照；失败时显示原因，防止重复提交；修正页脚版本号重复 v 前缀 |
-| **v4.5** | 2026-09-28 | 新增「备份到邮箱」：填收件邮箱一键把全量备份 JSON 作为附件发出（经 Resend，API Key 存 Worker Secret 不进仓库）；自动记住上次邮箱；本地下载备份保留不变 |
-| v4.4 | 2026-09-27 | 书签卡片末尾新增「＋」：鼠标移到链接上显现（手机常驻），点一下自动选好该链接所属分类，保存即归入并排最前；侧栏分类「＋」保留不变 |
-| v4.3 | 2026-09-25 | 侧栏分类行新增「＋」：点击直接新建书签并归入该分类，排在该分类最前，自动切换并聚焦；移动端胶囊分类同样支持 |
-| v4.2 | 2026-09-20 | 移动端布局重做：头部换行（标题+按钮 / 分区标签 / 搜索各一行）、分类变顶部横向滚动胶囊条、书签两列撑满；体验优化：首屏骨架屏、图标懒加载防抖、搜索清除按钮、`Esc` 关闭浮层、键盘焦点可见、深色滚动条 + `color-scheme:dark`；「分区管理」支持拖动排序（新增分区 `sort` 字段） |
-| v4.1 | 2026-09-11 | 新增站内全局搜索（跨分组/分类，实时过滤高亮 + `Ctrl/⌘+K` 快捷键）；新增「检查更新」入口（页脚版本号 + 设置里比对 GitHub 最新版，配套 `version.json` 自检） |
-| v4.0 | 2026-09-11 | 缓存加固：静态资源按版本号长缓存 1 年（immutable），改版自动生效；修复安全缺口——`run_worker_first` 强制静态资源过 Worker，未登录无法下载前端源码；新增 `bump.js` 自动版本号、`deploy.bat` 一键部署+清缓存；代码开源 |
-| v3.0 | 2026-09-10 | 性能优化：新增 `/api/bootstrap?icons=1` 单接口（5 请求→1 请求）；HTML 内联预取省一个 RTT；localStorage 快照首帧渲染；Worker 内缓存热点数据；开启 HTTP/3 / 0-RTT / Brotli |
-| v2.0 | 2026-09-10 | 新增全站访问密码锁；后台可生成 48 位免密长密钥，凭 `/k/<key>` 免登录进入；修复未登录数据泄露 |
-| v1.0 | 2026-09-10 | 初版上线：Cloudflare Workers + KV 部署，基础书签导航（分组/分类/图标/后台管理/导入导出） |
-
----
-
-## 十一、安全提醒
-
-- **默认密码 `admin` 必须改掉。**
-- 部署用的令牌/密钥不要写进要提交的文件，优先用 `wrangler secret`。
-- 本仓库**不含任何真实凭据**；`wrangler.toml`、`deploy.example.bat`、`restore.example.mjs` 都只是占位模板。
-
----
-
-## 许可证 / License
-
-MIT © jeffak000 — 自由使用、修改、分发。
-
-觉得好用的话给个 ⭐ Star 吧。
+以上限制并不影响常规个人书签使用，重要数据仍建议定期备份。
