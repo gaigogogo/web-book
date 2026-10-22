@@ -1,0 +1,54 @@
+name: Deploy noteone update
+run-name: noteone update ${{ inputs.request_id }}
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published noteone release tag
+        required: true
+        type: string
+      request_id:
+        description: Website update request ID
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: noteone-production-update
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.version }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check target and install dependencies
+        working-directory: noteone
+        env:
+          TARGET_VERSION: ${{ inputs.version }}
+        run: |
+          node -e 'const v=require("./version.json").version;if(!/^v[0-9]+\.[0-9]+-noteone$/.test(process.env.TARGET_VERSION)||v!==process.env.TARGET_VERSION)throw Error("Invalid release version")'
+          npm ci
+      - name: Build and deploy to global excluding mainland China
+        working-directory: noteone
+        env:
+          PAGES_SOURCE: skills
+          EDGEONE_PAGES_API_TOKEN: ${{ secrets.EDGEONE_PAGES_API_TOKEN }}
+          EDGEONE_PAGES_API_REGION: global
+          EDGEONE_PROJECT_NAME: ${{ vars.EDGEONE_PROJECT_NAME || 'book-hub' }}
+        run: |
+          node bump.cjs
+          node build.cjs
+          npx --yes edgeone@1.6.41 makers deploy -n "$EDGEONE_PROJECT_NAME" -a overseas --skip-ai-gateway-sync --json
+      - name: Verify deployed version
+        env:
+          TARGET_VERSION: ${{ inputs.version }}
+          SITE_URL: ${{ vars.NOTEONE_SITE_URL || 'https://book.090803.xyz' }}
+        run: |
+          node -e '(async()=>{for(let i=0;i<12;i++){try{const r=await fetch(process.env.SITE_URL+"/api/version?check="+Date.now(),{signal:AbortSignal.timeout(10000)});if(r.ok&&(await r.json()).version===process.env.TARGET_VERSION){console.log("Live version verified");return}}catch{}await new Promise(r=>setTimeout(r,5000))}throw Error("Deployment version verification failed")})().catch(e=>{console.error(e.message);process.exitCode=1})'
