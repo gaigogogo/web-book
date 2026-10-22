@@ -8,6 +8,12 @@ if(!/^\d+\.\d+$/.test(number))throw Error('Use major.minor version');
 const tag='v'+number+'-noteone',releaseUrl='https://github.com/'+repo+'/releases/tag/'+tag;
 let notes=fs.readFileSync(path.join(root,'RELEASE_NOTES.md'),'utf8').replace(/^# .*/,'# '+tag+' · '+new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai'}).format(new Date()));
 function run(file,params=[]){cp.execFileSync(process.execPath,[file,...params],{cwd:root,stdio:'inherit',env:{...process.env,PAGES_SOURCE:'skills'}});}
+function deploy(){
+ const token=fs.readFileSync('D:/codex/api/edge api.txt','utf8').trim();
+ const result=cp.spawnSync(process.execPath,['D:/codex/tools/edgeone/node_modules/edgeone/edgeone-bin/edgeone.js','makers','deploy','-n','book-hub','-a','overseas','--skip-ai-gateway-sync','--json'],{cwd:root,encoding:'utf8',maxBuffer:8*1024*1024,env:{...process.env,PAGES_SOURCE:'skills',EDGEONE_PAGES_API_TOKEN:token,EDGEONE_PAGES_API_REGION:'global'}});
+ const log=((result.stdout||'')+(result.stderr||'')).split(token).join('[REDACTED]');process.stdout.write(log);fs.writeFileSync(path.join(root,'deploy-output.log'),log);
+ if(result.error||result.status!==0)throw Error(result.error?.message||'Deployment failed');
+}
 function replace(file,fn){const p=path.join(root,file);fs.writeFileSync(p,fn(fs.readFileSync(p,'utf8')));}
 async function main(){
  if(!publishOnly){
@@ -19,7 +25,7 @@ async function main(){
   replace('README.md',t=>t.replace(/^# .*$/m,'# noteone v'+number+' / EdgeOne 书签导航站').replaceAll('jeffak000/webbook-cf',repo).replaceAll('gaigogogo/webbook-cf',repo));
   for(const file of ['public/app.js','worker-source.js','public/sw.js'])run('--check',[file]);
   for(const test of ['test-link-speed.cjs','test-new-tools.cjs','test-book-cache.cjs','test-offline.cjs'])run('maintenance/'+test);
-  run('bump.cjs');run('build.cjs');run('maintenance/deploy-edgeone.cjs');
+  run('bump.cjs');run('build.cjs');deploy();
  }
  // 等候正式入口传播；未确认部署就不发布。
  let live=false;for(let i=0;i<8;i++){const r=await fetch('https://book.090803.xyz/api/version?release='+Date.now(),{signal:AbortSignal.timeout(15000)});if(r.ok&&(await r.json()).version===tag){live=true;break;}await new Promise(resolve=>setTimeout(resolve,3000));}if(!live)throw Error('Live version not verified: '+tag);
