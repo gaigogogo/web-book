@@ -178,7 +178,7 @@
     /* 布局改竖向：分类变顶部横向滚动胶囊条 */
     .layout{flex-direction:column}
     .resizer{display:none}
-    .side{width:100%;flex:none;flex-direction:row;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;border-right:none;border-bottom:1px solid var(--line);padding:8px 10px;scrollbar-width:none}
+    .side{display:none}
     .side::-webkit-scrollbar{display:none}
     .side h2{display:none}
     .cat{width:auto;flex:none;padding:6px 12px;border-left:none;border:1px solid var(--line);border-radius:999px;color:var(--mut);justify-content:center}
@@ -238,9 +238,9 @@
   <span class="dot">·</span>
   <a id="siteUrl" href="https://www.090803.xyz" target="_blank" rel="noopener">www.090803.xyz</a>
   <span class="dot">·</span>
-  <span id="siteVer">v4.8-noteone</span>
+  <span id="siteVer">v4.9-noteone</span>
   <span class="dot">·</span>
-  <a id="repoLink" href="https://github.com/jeffak000/webbook-cf" target="_blank" rel="noopener">GitHub 更新</a>
+  <a id="repoLink" href="https://github.com/gaigogogo/web-book" target="_blank" rel="noopener">GitHub 更新</a>
 </footer>
 
 <!-- 设置抽屉 -->
@@ -250,7 +250,7 @@
     <button class="ghost" id="btnCloseSettings">✕</button>
   </div>
   <div class="drawer-body">
-    <div class="setting"><div><label>检查网址</label><small>404/410 标记失效；超时、拒绝访问等标记待确认</small><div id="linkCheckInfo" aria-live="polite"></div></div><button id="btnCheckLinks" class="small">检查全部</button></div>
+    <div class="setting"><div><label>检查网址</label><small>优先检查未检或过期项；正常/失效结果保留24小时，待确认保留1小时。404/410为失效，超时等为待确认。</small><div id="linkCheckInfo" aria-live="polite"></div><button id="btnRecheckLinks" class="small">重新检查全部</button><button id="btnStopLinks" class="small" hidden>暂停</button></div><button id="btnCheckLinks" class="small">继续检查</button></div>
     <div class="setting"><div><label>主屏幕与离线访问</label><small>安装后保留本机页面及书签快照；离线只读，退出登录清理离线页面。iPad：Safari 分享 → 添加到主屏幕。</small></div><button id="btnInstall" class="small">启用离线</button></div>
     <div class="setting"><div><label>快速添加小工具</label><small>把下面链接拖到电脑书签栏，浏览网页时点击可收录</small><a id="bookmarklet" style="color:var(--acc)">保存到导航站</a></div></div>
     <div class="setting">
@@ -404,7 +404,7 @@
 
 <div class="ctx" id="ctxMenu"></div>
 
-<script src="app.js?v=202610132057"></script>
+<script src="app.js?v=202610222338"></script>
 </body>
 </html>
 

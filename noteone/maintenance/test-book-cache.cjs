@@ -1,0 +1,12 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
+const source=fs.readFileSync('D:/codex/projects/book-edgeone/worker-source.js','utf8');
+const worker=vm.runInNewContext(source+'\nworker',{Response,Request,Headers,URL,crypto:globalThis.crypto,TextEncoder,btoa,atob,console});
+const backup=JSON.parse(fs.readFileSync('D:/codex/backups/book-edgeone-20261003/cloudflare-kv.json','utf8'));
+const keys={...backup.keys};const env={BOOKMARKS:{get:async(k,t)=>keys[k]?(t==='json'?JSON.parse(keys[k]):keys[k]):null},ASSETS:{fetch:async()=>new Response('js',{headers:{'content-type':'application/javascript'}})}};
+(async()=>{let r=await worker.fetch(new Request('https://book.test/api/login',{method:'POST',body:JSON.stringify({password:JSON.parse(keys['data/password.json']).password})}),env);assert.equal(r.status,200);const token=(await r.json()).token;const auth={Authorization:'Bearer '+token};
+r=await worker.fetch(new Request('https://book.test/api/bootstrap?icons=1',{headers:auth}),env);assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'private, no-cache');const etag=r.headers.get('etag');const data=await r.json();assert(data.icons);assert.equal(data.categories.length,38);
+r=await worker.fetch(new Request('https://book.test/api/bootstrap?icons=1',{headers:{...auth,'If-None-Match':etag}}),env);assert.equal(r.status,304);
+r=await worker.fetch(new Request('https://book.test/api/bootstrap?icons=1',{headers:{'If-None-Match':etag}}),env);assert.equal(r.status,401);assert.equal(r.headers.get('cache-control'),'no-store');
+keys['data/categories.json']=JSON.stringify([...data.categories,{id:'cache-test',name:'changed'}]);r=await worker.fetch(new Request('https://book.test/api/bootstrap?icons=1',{headers:{...auth,'If-None-Match':etag}}),env);assert.equal(r.status,200);assert.notEqual(r.headers.get('etag'),etag);
+r=await worker.fetch(new Request('https://book.test/app.js?v=1',{headers:auth}),env);assert.equal(r.headers.get('cache-control'),'private, max-age=31536000, immutable');
+console.log('PASS: private assets, bundled icons, authenticated 304, changed-data invalidation, unauthorized no-store.');})().catch(e=>{console.error(e.message);process.exitCode=1});

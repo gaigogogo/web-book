@@ -1,0 +1,10 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
+const handlers={},stored=new Map();let online=true;
+const key=x=>new URL(typeof x==='string'?x:x.url,'https://book.test').href;
+const cache={put:async(k,r)=>stored.set(key(k),r.clone()),match:async k=>stored.get(key(k))?.clone()};
+const c={URL,Response,AbortController,setTimeout,clearTimeout,caches:{open:async()=>cache,match:cache.match,delete:async()=>{stored.clear();}},self:{location:{origin:'https://book.test'},clients:{claim:async()=>{}},skipWaiting:async()=>{},addEventListener:(n,cb)=>handlers[n]=cb},fetch:async()=>{if(!online)throw Error('offline');return new Response('<script src="app.js?v=1"></script>',{headers:{'x-book-shell':'1','content-type':'application/javascript'}});}};
+vm.runInNewContext(fs.readFileSync('public/sw.js','utf8'),c);
+(async()=>{const waits=[];let result;handlers.message({data:{type:'ENABLE_OFFLINE',asset:'/app.js?v=1'},ports:[{postMessage:x=>result=x}],waitUntil:p=>waits.push(p)});await Promise.all(waits);assert(result.ok);online=false;
+let promise;handlers.fetch({request:{url:'https://book.test/',method:'GET',mode:'navigate'},respondWith:p=>promise=p,waitUntil(){}});assert((await(await promise).text()).includes('app.js'));
+let touched=false;handlers.fetch({request:{url:'https://book.test/api/bootstrap',method:'GET'},respondWith:()=>touched=true});assert.equal(touched,false);
+await new Promise(resolve=>handlers.message({data:{type:'CLEAR_OFFLINE'},waitUntil:p=>p.then(resolve)}));assert.equal(stored.size,0);console.log('PASS: explicit offline shell, offline navigation fallback, no API cache interception, logout cache clearing');})().catch(e=>{console.error(e);process.exitCode=1});

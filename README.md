@@ -1,8 +1,8 @@
 <!-- platform-releases -->
 ## 版本选择
 
-- **Cloudflare：v4.6 最终版，停止更新。** 使用 Workers + KV，下载 [CF v4.6](https://github.com/jeffak000/webbook-cf/releases/tag/v4.6)。
-- **腾讯云：v4.8-noteone，持续维护。** 使用 EdgeOne + Blob，源码位于 noteone/，下载 [noteone v4.8](https://github.com/jeffak000/webbook-cf/releases/tag/v4.8-noteone)。包括备注标识、本地快照缓存与手动刷新。
+- **Cloudflare：v4.6 最终版，停止更新。** 使用 Workers + KV，下载 [CF v4.6](https://github.com/gaigogogo/web-book/releases/tag/v4.6)。
+- **腾讯云：v4.9-noteone，持续维护。** 使用 EdgeOne + Blob，源码位于 noteone/，下载 [noteone v4.9](https://github.com/gaigogogo/web-book/releases/tag/v4.9-noteone)。包括备注标识、本地快照缓存与手动刷新。
 
 两版部署配置不同，升级前导出 JSON 备份。需要 CF 的用户请选择 v4.6（含）或更早版本。
 
@@ -87,11 +87,11 @@
 **方式 A（推荐，会用 git）**：打开命令行，执行
 
 ```bash
-git clone https://github.com/jeffak000/webbook-cf.git
+git clone https://github.com/gaigogogo/web-book.git
 cd webbook-cf
 ```
 
-**方式 B（不会 git）**：打开 https://github.com/jeffak000/webbook-cf → 点绿色 **Code** 按钮 → **Download ZIP** → 解压到本地任意文件夹（比如 `D:\webbook-cf`）。
+**方式 B（不会 git）**：打开 https://github.com/gaigogogo/web-book → 点绿色 **Code** 按钮 → **Download ZIP** → 解压到本地任意文件夹（比如 `D:\webbook-cf`）。
 
 ### 步骤 2：装 wrangler（Cloudflare 的部署工具）
 

@@ -13,8 +13,8 @@
 // ---------------------------------------------------------------------------
 
 const PUBLIC = new Set(["categories", "bookmarks", "icon", "health"]);
-const APP_VERSION = "v4.8-noteone";                  // 语义版本，对应 GitHub 上的发行版
-const REPO_VERSION_URL = "https://raw.githubusercontent.com/jeffak000/webbook-cf/main/noteone/version.json";
+const APP_VERSION = "v4.9-noteone";                  // 语义版本，对应 GitHub 上的发行版
+const REPO_VERSION_URL = "https://raw.githubusercontent.com/gaigogogo/web-book/main/noteone/version.json";
 
 // --------------------------- 基础工具 ---------------------------
 function json(body, status = 200, extra = {}) {
@@ -284,7 +284,7 @@ async function checkUpdate(env) {
   const out = {
     current: APP_VERSION,
     latest: null,
-    url: "https://github.com/jeffak000/webbook-cf/releases",
+    url: "https://github.com/gaigogogo/web-book/releases",
     notes: "",
     hasUpdate: false,
     error: null,
@@ -454,7 +454,7 @@ function decodeTitle(t) {
   }).replace(/&(amp|lt|gt|quot|apos|nbsp);/gi,(_,n)=>({amp:"&",lt:"<",gt:">",quot:'"',apos:"'",nbsp:" "}[n.toLowerCase()])).replace(/\s+/g," ").trim().slice(0,200);
 }
 async function checkPublicDns(host, signal) {
-  for (const type of ["A","AAAA"]) {
+  await Promise.all(["A","AAAA"].map(async type => {
     const r=await fetch("https://dns.google/resolve?name="+encodeURIComponent(host)+"&type="+type,{signal});
     if(!r.ok)throw new Error("DNS check failed");
     const j=await r.json();if(j.Status!==0)throw new Error("DNS failed");
@@ -465,16 +465,17 @@ async function checkPublicDns(host, signal) {
       }
       if(answer.type===28&&!/^2[0-9a-f]{3}:/i.test(answer.data))throw new Error("Unsupported IPv6");
     }
-  }
+  }));
 }
-async function inspectUrl(value, metadata) {
+async function inspectUrl(value, metadata, dnsMemo = new Map()) {
   const checked_at = Date.now();
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 6500);
+  const timer = setTimeout(() => ctrl.abort(), metadata ? 6500 : 4500);
   try {
     let u = publicWebUrl(value), r;
     for (let i=0;i<5;i++) {
-      await checkPublicDns(u.hostname,ctrl.signal);
+      if(!dnsMemo.has(u.hostname)) dnsMemo.set(u.hostname,checkPublicDns(u.hostname,ctrl.signal));
+      await dnsMemo.get(u.hostname);
       r=await fetch(u.href,{method:metadata?"GET":"HEAD",redirect:"manual",signal:ctrl.signal});
       if(!metadata&&[405,501].includes(r.status)) {
         if(r.body)await r.body.cancel();
@@ -633,11 +634,12 @@ const worker = {
     }
     if (head === "check-links" && method === "POST") {
       const body = await readBody(request);
-      const ids = Array.isArray(body.ids) ? [...new Set(body.ids)].slice(0, 4) : [];
+      const ids = Array.isArray(body.ids) ? [...new Set(body.ids)].slice(0, 8) : [];
       if (!ids.length) return json({error:"请选择待检查书签"},400);
       const bookmarks = await getBms(env);
       const selected = bookmarks.filter(b => ids.includes(b.id));
-      const results = await Promise.all(selected.map(async b => ({id:b.id, url:b.url, ...(await inspectUrl(b.url, false))})));
+      const dnsMemo = new Map();
+      const results = await Promise.all(selected.map(async b => ({id:b.id, url:b.url, ...(await inspectUrl(b.url, false, dnsMemo))})));
       // 探测完成后重读，避免长时间探测期间覆盖其他设备的新增/修改。
       const latest = await getBms(env);
       for (const result of results) {

@@ -1,5 +1,5 @@
 {
-  "version": "v4.8-noteone",
-  "url": "https://github.com/jeffak000/webbook-cf/releases/tag/v4.8-noteone",
-  "notes": "腾讯云版4.8：URL自动抓标题、快速添加小工具、链接状态检测、手机编辑模式及长按菜单、PWA与离线只读；修复书签删除确认与新增后自动跳分类。CF保留v4.6。"
+  "version": "v4.9-noteone",
+  "url": "https://github.com/gaigogogo/web-book/releases/tag/v4.9-noteone",
+  "notes": "腾讯云4.9：手机分类导航隐藏、网址检测提速与续查、状态10分钟隐藏。详情见Release。"
 }

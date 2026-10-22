@@ -6,10 +6,10 @@ let BMS = [];
 let ICONS = {};
 let GROUPS = [{ id: "personal", name: "个人区" }, { id: "work", name: "工作区" }];
 let SITE = { name: "gai溜子导航站", author: "gai溜子到处跑", url: "www.090803.xyz" };
-const VERSION = "202610132057";
-const APP_VERSION = "v4.8-noteone";
+const VERSION = "202610222338";
+const APP_VERSION = "v4.9-noteone";
 const SNAPSHOT_VERSION = 4;
-const REPO_URL = "https://github.com/jeffak000/webbook-cf";
+const REPO_URL = "https://github.com/gaigogogo/web-book";
 let SEARCH_Q = "";
 let GROUP = localStorage.getItem("bm_group") || "personal";
 let ACTIVE_CAT = "all";
@@ -346,7 +346,10 @@ function bmItem(b) {
   img.addEventListener("error", () => iconError(img, h), { once: true });
   const state = document.createElement("span");
   state.className = "link-state " + (b.link_status || "");
-  const label = {ok:"正常",broken:"失效",unknown:"待确认"}[b.link_status];
+  const label = b.link_checked_at && Date.now() - b.link_checked_at < 10 * 60 * 1000
+    ? {ok:"正常",broken:"失效",unknown:"待确认"}[b.link_status] : "";
+  state.hidden = !label;
+  if(label)state.dataset.expires=String(b.link_checked_at+10*60*1000);
   state.textContent = label || "";
   state.title = b.link_checked_at ? "最后检查：" + new Date(b.link_checked_at).toLocaleString() + (b.link_http_status ? " HTTP " + b.link_http_status : "") : "";
   if(label){state.tabIndex=0;state.setAttribute("role","button");state.onclick=e=>{e.stopPropagation();toast(state.title);};state.onkeydown=e=>{if(e.key==="Enter"){e.stopPropagation();toast(state.title);}};}
@@ -1116,23 +1119,47 @@ async function fetchMetadata() {
 }
 el("btnFetchTitle").onclick=fetchMetadata;
 el("bmUrl").addEventListener("input",()=>{metadataSeq++;clearTimeout(metadataTimer);el("metadataStatus").textContent="";metadataTimer=setTimeout(fetchMetadata,600);});
-el("btnCheckLinks").onclick=async()=>{
+let linkCheckRunning=false,stopLinkCheck=false;
+function linkCheckDue(b,now=Date.now()) {
+  const ttl=b.link_status==="unknown"?3600000:86400000;
+  return !["ok","broken","unknown"].includes(b.link_status)||!b.link_checked_at||now-b.link_checked_at>=ttl;
+}
+async function checkLinks(force=false) {
+  if(linkCheckRunning)return;
   if(pendingSave||pendingMove)return toast("请等待当前保存完成");
   await needAuth();if(!TOKEN)return;
-  const btn=el("btnCheckLinks"),ids=BMS.map(b=>b.id);pendingSave=true;btn.disabled=true;
-  let checked=0;
+  if(linkCheckRunning||pendingSave||pendingMove)return;
+  const btn=el("btnCheckLinks"),recheck=el("btnRecheckLinks"),stop=el("btnStopLinks");
+  pendingSave=true;linkCheckRunning=true;stopLinkCheck=false;btn.disabled=true;recheck.disabled=true;stop.hidden=false;stop.disabled=false;
+  let checked=0,total=0,skipped=0;
   try {
-    for(let i=0;i<ids.length;i+=4){
-      el("linkCheckInfo").textContent="检查中 "+checked+" / "+ids.length;
-      const r=await callApi("/check-links",{method:"POST",body:JSON.stringify({ids:ids.slice(i,i+4)}),timeout:15000});
-      if(!r.ok)throw new Error("检查中断");
-      const j=await r.json();for(const result of j.results){const b=BMS.find(b=>b.id===result.id&&b.url===result.url);if(b)Object.assign(b,{link_status:result.status,link_http_status:result.http_status,link_checked_at:result.checked_at});}
-      checked+=j.results.length;mutationEpoch++;persistCurrentData();render();
+    el("linkCheckInfo").textContent="正在同步已有检查进度…";
+    const current=await callApi("/bookmarks",{cache:"no-store",timeout:25000});
+    if(!current.ok)throw Error("同步进度失败（HTTP "+current.status+"）");
+    for(const remote of await current.json()){const b=BMS.find(b=>b.id===remote.id&&b.url===remote.url);if(b)for(const field of ["link_status","link_http_status","link_checked_at"]) {if(remote[field]!==undefined)b[field]=remote[field];else delete b[field];}}
+    const now=Date.now(),ids=BMS.filter(b=>force||linkCheckDue(b,now)).map(b=>b.id);total=ids.length;skipped=BMS.length-total;
+    persistCurrentData();render();
+    for(let i=0;i<ids.length&&!stopLinkCheck;i+=8){
+      el("linkCheckInfo").textContent="检查中 "+checked+" / "+total+"，跳过近期结果 "+skipped+" 条";
+      let j;
+      for(let attempt=0;attempt<2;attempt++){
+        try{
+          const r=await callApi("/check-links",{method:"POST",body:JSON.stringify({ids:ids.slice(i,i+8)}),timeout:25000});
+          if(!r.ok)throw Error("HTTP "+r.status);
+          j=await r.json();if(!Array.isArray(j.results))throw Error("返回格式异常");break;
+        }catch(e){if(e.message==="unauthorized"||attempt===1||stopLinkCheck)throw e;el("linkCheckInfo").textContent="当前批次网络异常，正在重试；已完成 "+checked+" / "+total;}
+      }
+      for(const result of j.results){const b=BMS.find(b=>b.id===result.id&&b.url===result.url);if(b)Object.assign(b,{link_status:result.status,link_http_status:result.http_status,link_checked_at:result.checked_at});}
+      checked+=j.results.length;mutationEpoch++;persistCurrentData();
+      // 检查期间仅更新状态，结束后统一重绘，避免每批重建全部书签。
     }
-    el("linkCheckInfo").textContent="已检查 "+checked+" 条；失效 "+BMS.filter(b=>b.link_status==="broken").length+"，待确认 "+BMS.filter(b=>b.link_status==="unknown").length;
-  } catch {el("linkCheckInfo").textContent="检查中断，已保留 "+checked+" 条结果，可重新检查";}
-  finally {pendingSave=false;btn.disabled=false;}
-};
+    el("linkCheckInfo").textContent=(stopLinkCheck?"已暂停，":"检查完成，")+"本次 "+checked+" / "+total+" 条；跳过近期结果 "+skipped+" 条；失效 "+BMS.filter(b=>b.link_status==="broken").length+"，待确认 "+BMS.filter(b=>b.link_status==="unknown").length;
+  } catch(e) {el("linkCheckInfo").textContent="检查中断（"+(e.name==="AbortError"?"网络超时":e.message)+"），本次已保留 "+checked+" 条；点“继续检查”会跳过已完成项";}
+  finally {pendingSave=false;linkCheckRunning=false;btn.disabled=false;recheck.disabled=false;stop.hidden=true;render();}
+}
+el("btnCheckLinks").onclick=()=>checkLinks(false);
+el("btnRecheckLinks").onclick=()=>checkLinks(true);
+el("btnStopLinks").onclick=()=>{stopLinkCheck=true;el("btnStopLinks").disabled=true;el("linkCheckInfo").textContent="正在保存当前批次后暂停…";};
 el("bookmarklet").href="javascript:"+encodeURIComponent("(()=>{window.open("+JSON.stringify(location.origin+"/?add=")+"+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title),'_blank')})()");
 const addParams=new URLSearchParams(location.search);
 if(addParams.has("add")){addBm();el("bmUrl").value=addParams.get("add")||"";el("bmTitle_in").value=addParams.get("title")||"";history.replaceState(null,"","/");setTimeout(fetchMetadata,700);}
@@ -1152,4 +1179,11 @@ el("btnInstall").onclick=async()=>{
   }catch{toast("离线准备失败，请联网后重试");}
 };
 window.addEventListener("offline",()=>toast("当前离线，可浏览缓存；修改需联网"));
+// 仅隐藏检测提示，不删除服务端检查记录，也不重绘整页。
+setInterval(()=>{
+  const now=Date.now();
+  document.querySelectorAll(".link-state[data-expires]").forEach(node=>{
+    if(Number(node.dataset.expires)<=now){node.hidden=true;node.textContent="";delete node.dataset.expires;}
+  });
+},1000);
 
