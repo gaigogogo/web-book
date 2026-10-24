@@ -160,7 +160,8 @@ CF 用户继续使用 [v4.6及更早版本](https://github.com/gaigogogo/web-boo
 
 | 版本 | 主要内容 |
 | --- | --- |
-| **v{{VERSION}}** | 全新磨砂导航界面、三种主题、卡片/胶囊显示密度、手机双列书签与编辑适配 |
+| **v{{VERSION}}** | 精致卡片标题自动换行，最多3行；胶囊模式保持单行 |
+| [v4.11](https://github.com/gaigogogo/web-book/releases/tag/v4.11-noteone) | 全新磨砂导航界面、三种主题、卡片/胶囊显示密度、手机双列书签与编辑适配 |
 | [v4.10](https://github.com/gaigogogo/web-book/releases/tag/v4.10-noteone) | 仓库说明重整为 EdgeOne 主版本；网站页脚显示 EdgeOne；补齐升级说明 |
 | [v4.9](https://github.com/gaigogogo/web-book/releases/tag/v4.9-noteone) | 手机分类导航隐藏、链接检测提速与续查、状态文字10分钟自动隐藏、维护发布流程 |
 | [v4.8](https://github.com/gaigogogo/web-book/releases/tag/v4.8-noteone) | 自动标题、小工具、链接检测、手机编辑模式、长按菜单与PWA |
