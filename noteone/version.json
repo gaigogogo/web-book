@@ -1,5 +1,5 @@
 {
-  "version": "v4.10-noteone",
-  "url": "https://github.com/gaigogogo/web-book/releases/tag/v4.10-noteone",
-  "notes": "腾讯云4.10更新：GitHub首页README重写，以腾讯云EdgeOne为当前维护平台，补齐功能、项目结构、构建部署、配置、日常使用、升级流程和版本记录。；网站底部改为“v4.10 · EdgeOne”，不再显示noteone平台名称。历史源码目录与Release标签保留原名称，保证旧链接兼容。；修正手动升级说明：EdgeOne需完整源码构建并部署到原项目，不适用旧CF文档的三个文件及wrangler命令。"
+  "version": "v4.11-noteone",
+  "url": "https://github.com/gaigogogo/web-book/releases/tag/v4.11-noteone",
+  "notes": "腾讯云4.11更新：参考新的页面设计重做导航界面：磨砂顶栏、分组标签、分类图标与数量、大图标书签卡片，卡片补充网址主机名。；新增暗夜磨砂、深空黑钛、纯净银白三种主题，以及精致卡片、极简胶囊两种显示密度；外观选择在当前浏览器记忆。；保留搜索、备注标识、编辑、移动、添加、缓存和PWA功能；手机继续隐藏左侧分类，书签以双列显示，编辑按钮与新增弹窗适配窄屏。"
 }

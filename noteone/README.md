@@ -2,9 +2,9 @@
 
 一个轻量的网址收藏与导航站：用分组、分类、搜索和备注整理常用网址，支持电脑、手机和 iPad 浏览及维护。
 
-**当前维护平台：腾讯云 EdgeOne Pages / Makers。当前版本：v4.10。**
+**当前维护平台：腾讯云 EdgeOne Pages / Makers。当前版本：v4.11。**
 
-[在线演示](https://book.090803.xyz/) · [下载最新版](https://github.com/gaigogogo/web-book/releases/tag/v4.10-noteone) · [全部版本](https://github.com/gaigogogo/web-book/releases) · [完整介绍与更新历史](https://www.090803.xyz/feed/10)
+[在线演示](https://book.090803.xyz/) · [下载最新版](https://github.com/gaigogogo/web-book/releases/tag/v4.11-noteone) · [全部版本](https://github.com/gaigogogo/web-book/releases) · [完整介绍与更新历史](https://www.090803.xyz/feed/10)
 
 > 平台名称统一为 **EdgeOne**。仓库中的 `noteone/` 是沿用的历史源码目录名，Release 标签中的 `-noteone` 为兼容历史下载和更新检查而保留，不代表另一种平台。
 
@@ -21,7 +21,7 @@
 
 | 版本 | 平台与存储 | 状态 | 下载 |
 | --- | --- | --- | --- |
-| **EdgeOne v4.10** | 腾讯云 EdgeOne + Blob | 持续维护，推荐新部署使用 | [EdgeOne 最新版](https://github.com/gaigogogo/web-book/releases/tag/v4.10-noteone) |
+| **EdgeOne v4.11** | 腾讯云 EdgeOne + Blob | 持续维护，推荐新部署使用 | [EdgeOne 最新版](https://github.com/gaigogogo/web-book/releases/tag/v4.11-noteone) |
 | Cloudflare v4.6 | Cloudflare Workers + KV | 最终保留版，停止更新 | [CF v4.6](https://github.com/gaigogogo/web-book/releases/tag/v4.6) |
 
 腾讯云正式入口：[book.090803.xyz](https://book.090803.xyz/)；CF 独立保留入口：[bookcf.090803.xyz](https://bookcf.090803.xyz/)。两站数据独立，不能当作自动同步的镜像。
@@ -30,6 +30,7 @@
 
 ## 二、主要功能
 
+- 页面外观：磨砂导航、大图标卡片与网址主机名，支持三种主题、卡片/胶囊密度切换并记忆本机选择。
 - 分组和分类：按用途组织网址，支持新建、改名、移动、排序和数量统计。
 - 全局搜索：跨分组搜索标题、URL、备注与分类名；支持 Ctrl/⌘+K。
 - 书签维护：新增、编辑、删除、拖拽移动；保存成功直接更新页面，减少全量重载。
@@ -123,7 +124,7 @@ PWA 首次需联网登录并在设置中启用离线。iPad 使用 Safari 分享
 ### 当前可用：EdgeOne 手动升级
 
 1. 在设置中导出 JSON 备份。
-2. 下载 [最新 EdgeOne ZIP](https://github.com/gaigogogo/web-book/releases/tag/v4.10-noteone)，或在本地仓库执行 `git pull`。
+2. 下载 [最新 EdgeOne ZIP](https://github.com/gaigogogo/web-book/releases/tag/v4.11-noteone)，或在本地仓库执行 `git pull`。
 3. 使用完整 EdgeOne 源码构建，不能只替换 CF 文档中的三个文件：
 
 ```bash
@@ -159,7 +160,8 @@ CF 用户继续使用 [v4.6及更早版本](https://github.com/gaigogogo/web-boo
 
 | 版本 | 主要内容 |
 | --- | --- |
-| **v4.10** | 仓库说明重整为 EdgeOne 主版本；网站页脚显示 EdgeOne；区分可用升级流程与尚未接通的一键更新 |
+| **v4.11** | 全新磨砂导航界面、三种主题、卡片/胶囊显示密度、手机双列书签与编辑适配 |
+| [v4.10](https://github.com/gaigogogo/web-book/releases/tag/v4.10-noteone) | 仓库说明重整为 EdgeOne 主版本；网站页脚显示 EdgeOne；补齐升级说明 |
 | [v4.9](https://github.com/gaigogogo/web-book/releases/tag/v4.9-noteone) | 手机分类导航隐藏、链接检测提速与续查、状态文字10分钟自动隐藏、维护发布流程 |
 | [v4.8](https://github.com/gaigogogo/web-book/releases/tag/v4.8-noteone) | 自动标题、小工具、链接检测、手机编辑模式、长按菜单与PWA |
 | [v4.7](https://github.com/gaigogogo/web-book/releases/tag/v4.7-noteone) | EdgeOne独立版、备注标识、本地快照与手动刷新、保存和移动优化 |

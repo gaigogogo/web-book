@@ -6,8 +6,8 @@ let BMS = [];
 let ICONS = {};
 let GROUPS = [{ id: "personal", name: "个人区" }, { id: "work", name: "工作区" }];
 let SITE = { name: "gai溜子导航站", author: "gai溜子到处跑", url: "www.090803.xyz" };
-const VERSION = "202610230000";
-const APP_VERSION = "v4.10-noteone";
+const VERSION = "202610241125";
+const APP_VERSION = "v4.11-noteone";
 const SNAPSHOT_VERSION = 4;
 const REPO_URL = "https://github.com/gaigogogo/web-book";
 let SEARCH_Q = "";
@@ -206,7 +206,7 @@ function render() {
 
 function renderSite() {
   const name = SITE.name || "我的导航站";
-  el("siteName").textContent = "🔖 " + name;
+  el("siteName").textContent = name;
   document.title = name;
   el("siteAuthor").textContent = SITE.author || "";
   const u = (SITE.url || "").trim();
@@ -226,12 +226,24 @@ function renderTabs() {
   }
 }
 
+function navIcon(name) {
+  let shape='<path d="M3 6h6l2 2h10v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6Z"/>';
+  if(name==="all")shape='<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>';
+  else if(/nas|服务器|idc/i.test(name))shape='<rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 6.5h.01M7 17.5h.01M11 6.5h6M11 17.5h6"/>';
+  else if(/cf|云|腾讯/i.test(name))shape='<path d="M7 18a5 5 0 1 1 .5-10 6 6 0 0 1 11.4 2A4 4 0 0 1 18 18Z"/>';
+  else if(/pc|win|mac|电脑/i.test(name))shape='<rect x="3" y="3" width="18" height="13" rx="2"/><path d="M8 21h8M12 16v5"/>';
+  else if(/导航|tools|工具/i.test(name))shape='<circle cx="12" cy="12" r="9"/><path d="m16 8-3 5-5 3 3-5 5-3Z"/>';
+  else if(/屏蔽|机场|翻墙/i.test(name))shape='<path d="M12 3 4 6v6c0 4 4 7 8 9 4-2 8-5 8-9V6l-8-3Z"/>';
+  else if(/ai|模型|gpt/i.test(name))shape='<rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4M10 10h4v4h-4z"/>';
+  return '<span class="cat-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">'+shape+'</svg></span>';
+}
 function renderCatNav() {
   const list = el("catList"); list.innerHTML = "";
+  el("sideCategoryCount").textContent=groupCats().length+" 组";
   const all = document.createElement("div");
   all.className = "cat" + (ACTIVE_CAT === "all" ? " active" : "");
   all.dataset.virtual = "1";
-  all.innerHTML = `<span class="name">全部</span><span class="cnt">${groupBms().length}</span>`;
+  all.innerHTML = navIcon("all")+`<span class="name">全部</span><span class="cnt">${groupBms().length}</span>`;
   all.onclick = () => { SEARCH_Q = ""; if (el("search")) el("search").value = ""; ACTIVE_CAT = "all"; render(); };
   list.appendChild(all);
   for (const c of groupCats()) {
@@ -239,7 +251,7 @@ function renderCatNav() {
     d.className = "cat" + (ACTIVE_CAT === c.id ? " active" : "");
     d._cat = c;
     d.draggable = true;
-    d.innerHTML = `<span class="name">${esc(c.name)}</span><span class="cnt">${bmCount(c.id)}</span><span class="add" role="button" tabindex="0" title="添加书签到「${esc(c.name)}」">＋</span>`;
+    d.innerHTML = navIcon(c.name)+`<span class="name">${esc(c.name)}</span><span class="cnt">${bmCount(c.id)}</span><span class="add" role="button" tabindex="0" title="添加书签到「${esc(c.name)}」">＋</span>`;
     d.onclick = () => { SEARCH_Q = ""; if (el("search")) el("search").value = ""; ACTIVE_CAT = c.id; render(); };
     const addBtn = d.querySelector(".add");
     if (addBtn) addBtn.onclick = (e) => { e.stopPropagation(); addBmTo(c.id); };
@@ -338,11 +350,15 @@ function section(title, count, items, cat) {
 function bmItem(b) {
   const h = hostOf(b.url);
   const d = document.createElement("div"); d.className = "item"; d._bm = b; d.draggable = true;
+  d.tabIndex=0;d.setAttribute("role","link");d.setAttribute("aria-label",b.title||b.url);
+  d.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target===d&&!EDIT_MODE){e.preventDefault();window.open(b.url,"_blank");}});
   d.title = [b.title, b.url, b.note].filter(Boolean).join("\n");
   const note = String(b.note || b.notes || b.remark || b.description || "").trim();
   const noteMark = note ? `<span class="note-mark" data-note="${esc(note)}" role="img" tabindex="0" aria-label="备注：${esc(note)}">!</span>` : "";
-  d.innerHTML = `<span class="icon-wrap"><img src="${iconSrc(h)}" alt="" width="18" height="18" loading="lazy" decoding="async" referrerpolicy="no-referrer"/>${noteMark}</span><span class="t">${hl(b.title || b.url, SEARCH_Q)}</span><button class="add bm-add" type="button" title="添加到本分类" aria-label="添加到本分类">＋</button>`;
+  d.innerHTML = `<span class="icon-wrap"><img src="${iconSrc(h)}" alt="" width="22" height="22" loading="lazy" decoding="async" referrerpolicy="no-referrer"/>${noteMark}</span><span class="bm-copy"><span class="t">${hl(b.title || b.url, SEARCH_Q)}</span><span class="bm-host">${esc(h.replace(/^www\./,""))||"自定义链接"}</span></span><button class="add bm-add" type="button" title="添加到本分类" aria-label="添加到本分类">＋</button>`;
   const img = d.querySelector("img");
+  const noteButton=d.querySelector(".note-mark");
+  if(noteButton){noteButton.setAttribute("role","button");noteButton.onclick=e=>{e.stopPropagation();toast(note);};noteButton.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();e.stopPropagation();toast(note);}};}
   img.addEventListener("error", () => iconError(img, h), { once: true });
   const state = document.createElement("span");
   state.className = "link-state " + (b.link_status || "");
@@ -1093,6 +1109,20 @@ document.addEventListener("keydown", (e) => {
 });
 
 // ---------------- 启动 ----------------
+function applyAppearance(theme,density) {
+  theme=["sonoma","titanium","studio"].includes(theme)?theme:"sonoma";
+  density=density==="compact"?"compact":"cards";
+  document.documentElement.dataset.theme=theme;document.documentElement.dataset.density=density;
+  el("themeSelect").value=theme;
+  el("viewCards").setAttribute("aria-pressed",String(density==="cards"));
+  el("viewCompact").setAttribute("aria-pressed",String(density==="compact"));
+  const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.content=theme==="studio"?"#f5f5f7":theme==="titanium"?"#09090b":"#0b0f17";
+  try{localStorage.setItem("bm_theme",theme);localStorage.setItem("bm_density",density);}catch{}
+}
+applyAppearance(document.documentElement.dataset.theme,document.documentElement.dataset.density);
+el("viewCards").onclick=()=>applyAppearance(document.documentElement.dataset.theme,"cards");
+el("viewCompact").onclick=()=>applyAppearance(document.documentElement.dataset.theme,"compact");
+el("themeSelect").onchange=()=>applyAppearance(el("themeSelect").value,document.documentElement.dataset.density);
 updateLoginBtn();
 loadData();
 loadAccess();

@@ -30,6 +30,7 @@
 
 ## 二、主要功能
 
+- 页面外观：磨砂导航、大图标卡片与网址主机名，支持三种主题、卡片/胶囊密度切换并记忆本机选择。
 - 分组和分类：按用途组织网址，支持新建、改名、移动、排序和数量统计。
 - 全局搜索：跨分组搜索标题、URL、备注与分类名；支持 Ctrl/⌘+K。
 - 书签维护：新增、编辑、删除、拖拽移动；保存成功直接更新页面，减少全量重载。
@@ -159,7 +160,8 @@ CF 用户继续使用 [v4.6及更早版本](https://github.com/gaigogogo/web-boo
 
 | 版本 | 主要内容 |
 | --- | --- |
-| **v{{VERSION}}** | 仓库说明重整为 EdgeOne 主版本；网站页脚显示 EdgeOne；区分可用升级流程与尚未接通的一键更新 |
+| **v{{VERSION}}** | 全新磨砂导航界面、三种主题、卡片/胶囊显示密度、手机双列书签与编辑适配 |
+| [v4.10](https://github.com/gaigogogo/web-book/releases/tag/v4.10-noteone) | 仓库说明重整为 EdgeOne 主版本；网站页脚显示 EdgeOne；补齐升级说明 |
 | [v4.9](https://github.com/gaigogogo/web-book/releases/tag/v4.9-noteone) | 手机分类导航隐藏、链接检测提速与续查、状态文字10分钟自动隐藏、维护发布流程 |
 | [v4.8](https://github.com/gaigogogo/web-book/releases/tag/v4.8-noteone) | 自动标题、小工具、链接检测、手机编辑模式、长按菜单与PWA |
 | [v4.7](https://github.com/gaigogogo/web-book/releases/tag/v4.7-noteone) | EdgeOne独立版、备注标识、本地快照与手动刷新、保存和移动优化 |
