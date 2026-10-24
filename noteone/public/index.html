@@ -287,6 +287,17 @@
   @media(min-width:701px) and (max-width:1250px){header{height:auto;min-height:64px;padding:12px 18px;gap:10px;flex-wrap:wrap}.tabs{max-width:calc(100% - 280px)}.search-wrap{flex:1;max-width:none}.side{width:200px}main{padding:26px 24px}.bar h3{font-size:22px}.view-label{display:none}}
   @media(max-width:700px){header{height:auto;gap:8px;padding:12px;flex-wrap:wrap}.brand{flex:1;order:0}.brand-emblem{width:29px;height:29px}.platform-badge{font-size:9px}header h1{font-size:14px;max-width:calc(100vw - 220px)}header button{font-size:11px;padding:7px 9px;min-height:32px}.tabs{order:2;max-width:100%;flex:1 1 100%;border-radius:10px}.tabs button{flex:1;padding:5px 12px;font-size:12px;min-height:28px}.search-wrap{order:3;flex:1 1 100%;width:100%;max-width:none}.search{height:36px}.side,.resizer{display:none!important}.layout{flex-direction:column}main{padding:20px 14px 24px}.bar{gap:7px;flex-wrap:wrap;padding-bottom:16px;margin-bottom:22px;min-height:48px}.bar h3{font-size:21px}.bar .count{font-size:10px}.bar .spacer{display:none}.view-control{width:100%;margin-top:8px;justify-content:flex-end}.view-label{display:none}.segmented button{font-size:11px;padding:4px 9px;min-height:25px}.sec{margin-bottom:25px}.sec-head{margin-bottom:11px}.items{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.item{padding:12px 10px;min-height:72px;gap:9px;border-radius:13px}.item .icon-wrap{width:32px;height:32px;border-radius:9px}.item img{width:19px;height:19px}.item .t{font-size:12px}.bm-host{font-size:9px}.item .add{display:none}.item .note-mark{width:13px;height:13px;font-size:8px;line-height:11px}.foot{padding:8px 12px;font-size:10px;gap:6px}.appearance-control{margin-left:0}.appearance-control label{display:none}#themeSelect{font-size:10px;padding:3px 5px}.view-control .segmented{padding:3px}.edit-tools{gap:3px;flex-wrap:wrap}.edit-tools button{font-size:10px;padding:4px 6px}html[data-density="compact"] .items{grid-template-columns:repeat(2,minmax(0,1fr))}html[data-density="compact"] .item{min-height:37px;gap:6px;padding:7px 8px}.skel-item{height:72px;border-radius:13px}}
 </style>
+<style id="readable-typography">
+:root{--font-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","PingFang SC","Hiragino Sans GB","Segoe UI","Microsoft YaHei",Arial,sans-serif;--subtle:#a0aec0;--mut:#b0bccd}
+html[data-theme="titanium"]{--subtle:#a1a1aa;--mut:#b8b8c2}
+html[data-theme="studio"]{--subtle:#626c7b;--mut:#536071}
+body{font-family:var(--font-ui);-webkit-font-smoothing:auto}
+.item .t{font-family:var(--font-ui);font-size:15px;font-weight:600;line-height:1.45;letter-spacing:normal}
+.bm-host{font-family:var(--font-ui);font-size:12px;line-height:1.45;letter-spacing:normal;color:var(--subtle)}
+.bm-copy{gap:5px}.cat .name,.tabs button{font-size:14px}.sec-head h4{font-size:15px}
+html[data-density="compact"] .item .t{font-size:13px}
+@media(max-width:700px){.item .t{font-size:14px}.bm-host{font-size:11px}.tabs button{font-size:13px}html[data-density="compact"] .item .t{font-size:13px}}
+</style>
 </head>
 <body>
 <header>
@@ -328,7 +339,7 @@
   <span class="dot">·</span>
   <a id="siteUrl" href="https://www.090803.xyz" target="_blank" rel="noopener">www.090803.xyz</a>
   <span class="dot">·</span>
-  <span id="siteVer">v4.12 · EdgeOne</span>
+  <span id="siteVer">v4.13 · EdgeOne</span>
   <span class="dot">·</span>
   <a id="repoLink" href="https://github.com/gaigogogo/web-book" target="_blank" rel="noopener">GitHub 更新</a>
   <div class="appearance-control"><label for="themeSelect">外观</label><select id="themeSelect" aria-label="选择界面外观"><option value="sonoma">暗夜磨砂</option><option value="titanium">深空黑钛</option><option value="studio">纯净银白</option></select></div>
@@ -495,7 +506,7 @@
 
 <div class="ctx" id="ctxMenu"></div>
 
-<script src="app.js?v=202610241135"></script>
+<script src="app.js?v=202610241142"></script>
 </body>
 </html>
 
