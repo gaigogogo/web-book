@@ -8,6 +8,15 @@
 
 > 平台名称统一为 **EdgeOne**。仓库中的 `noteone/` 是沿用的历史源码目录名，Release 标签中的 `-noteone` 为兼容历史下载和更新检查而保留，不代表另一种平台。
 
+
+<!-- webbook-preview:start -->
+## 界面预览
+
+![Web Book EdgeOne v4.10：书签分类与设置界面](https://raw.githubusercontent.com/gaigogogo/web-book/main/noteone/docs/screenshots/webbook-settings-20261024.png)
+
+当前演示分区与设置面板截图（2026-10-24）。
+<!-- webbook-preview:end -->
+
 ## 一、先选对版本
 
 | 版本 | 平台与存储 | 状态 | 下载 |
